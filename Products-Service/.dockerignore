@@ -1,0 +1,11 @@
+node_modules
+dist
+orders-service
+api-gateway
+auth-service
+frontend
+.git
+.gitignore
+README.md
+docker-compose.yml
+Dockerfile
