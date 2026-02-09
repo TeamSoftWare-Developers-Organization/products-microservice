@@ -21,7 +21,7 @@ async function bootstrap() {
   });
 
   await app.startAllMicroservices();
-  const port = 3000;
+  const port = 3003;
   await app.listen(port);
   console.log(`[Orders Service] HTTP API is running on port: ${port} (External: 3001)`);
   console.log(`[Orders Service] RabbitMQ connectivity initialized.`);

@@ -30,8 +30,8 @@ async function bootstrap() {
   // 2. بدء المستمعين (RabbitMQ) وخادم HTTP API
   await app.startAllMicroservices();
 
-  // تشغيل خادم HTTP على المنفذ 3000 (ليطابق docker-compose.yml)
-  const port = 3000;
+  // تشغيل خادم HTTP على المنفذ 3002 (ليطابق docker-compose.yml)
+  const port = 3002;
   await app.listen(port);
   console.log(`[Products Service] HTTP API is running on port: ${port}`);
   console.log(`[Products Service] RabbitMQ Microservice is connected to: ${RABBITMQ_URL}`);

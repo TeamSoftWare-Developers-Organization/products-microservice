@@ -6,14 +6,18 @@ import { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors(); // تفعيل CORS للواجهة الأمامية
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   const proxy = require('express-http-proxy');
 
   // Middleware for authentication
   const authMiddleware = new AuthMiddleware();
 
   // بوابة بوابة المنتجات
-  app.use('/products', (req: Request, res: Response, next: NextFunction) => authMiddleware.use(req, res, next), proxy('http://products-service:3000', {
+  app.use('/products', (req: Request, res: Response, next: NextFunction) => authMiddleware.use(req, res, next), proxy('http://localhost:3002', {
     proxyReqPathResolver: (req: any) => {
       const url = req.url === '/' ? '' : req.url;
       return `/api/products${url}`;
@@ -21,7 +25,7 @@ async function bootstrap() {
   }));
 
   // بوابة بوابة الطلبات
-  app.use('/orders', (req: Request, res: Response, next: NextFunction) => authMiddleware.use(req, res, next), proxy('http://orders-service:3000', {
+  app.use('/orders', (req: Request, res: Response, next: NextFunction) => authMiddleware.use(req, res, next), proxy('http://localhost:3003', {
     proxyReqPathResolver: (req: any) => {
       const url = req.url === '/' ? '' : req.url;
       return `/api/orders${url}`;
@@ -29,14 +33,14 @@ async function bootstrap() {
   }));
 
   // بوابة خدمة الهوية
-  app.use('/auth', proxy('http://auth-service:3000', {
+  app.use('/auth', proxy('http://localhost:3001', {
     proxyReqPathResolver: (req: any) => {
       const url = req.url === '/' ? '' : req.url;
       return `/auth${url}`;
     },
   }));
 
-  const port = 80;
+  const port = 8080;
   await app.listen(port);
   console.log(`[API Gateway] is running on port: ${port}`);
 }
