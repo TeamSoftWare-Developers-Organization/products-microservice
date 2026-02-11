@@ -91,7 +91,7 @@ services:
   # 3.1 خدمة الطلبات
   orders-service:
     build:
-      context: ./orders-service
+      context: ../orders-service
       dockerfile: Dockerfile
     container_name: orders-ms
     restart: always
@@ -114,7 +114,7 @@ services:
   # 4. بوابة الخدمات (API Gateway)
   api-gateway:
     build:
-      context: ./api-gateway
+      context: ../api-gateway
       dockerfile: Dockerfile
     container_name: api-gateway
     restart: always
@@ -153,7 +153,7 @@ services:
   # 3.2 خدمة الهوية
   auth-service:
     build:
-      context: ./auth-service
+      context: ../auth-service
       dockerfile: Dockerfile
     container_name: auth-ms
     restart: always
@@ -161,8 +161,6 @@ services:
       - app-network
     depends_on:
       auth-db:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     environment:
       NODE_ENV: production

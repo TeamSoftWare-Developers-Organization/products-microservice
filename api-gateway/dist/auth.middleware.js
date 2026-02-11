@@ -44,7 +44,8 @@ const common_1 = require("@nestjs/common");
 const jwt = __importStar(require("jsonwebtoken"));
 let AuthMiddleware = class AuthMiddleware {
     use(req, res, next) {
-        if (req.originalUrl.startsWith('/auth')) {
+        const isOrderPost = (req.originalUrl === '/orders' || req.originalUrl.startsWith('/orders?')) && req.method === 'POST';
+        if (!isOrderPost) {
             return next();
         }
         const authHeader = req.headers.authorization;

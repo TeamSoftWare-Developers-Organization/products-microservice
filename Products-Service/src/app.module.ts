@@ -12,31 +12,35 @@ import { ProductsModule } from './Products/products.module'; // تأكد من ا
       isGlobal: true, // لجعل المتغيرات متاحة في كل مكان
       // يمكنك هنا تحديد ملف .env محلي إذا كنت بحاجة إليه للاختبار
     }),
-    
+
     // 2. إعداد اتصال TypeORM باستخدام ConfigService
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      
-      useFactory: (config: ConfigService) => ({
-        
-        type: 'postgres',
-        // استخدام متغيرات البيئة المحددة في docker-compose.yml:
-        host: config.get<string>('DATABASE_HOST'), // postgres
-        // console.log(`[DB CONNECT DEBUG] Attempting connection with User: ${dbUser}`);
-        port: 5432,
-        username: config.get<string>('DATABASE_USER'), // postgres
-        password: config.get<string>('DATABASE_PASSWORD'), // password
-        database: config.get<string>('DATABASE_NAME'), // products_db
 
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true, // يبقى true للتطوير
-      }),
+      useFactory: (config: ConfigService) => {
+        const host = config.get<string>('DATABASE_HOST');
+        const user = config.get<string>('DATABASE_USER');
+        const db = config.get<string>('DATABASE_NAME');
+        console.log(`[DB DEBUG] Connecting to Host: ${host}, User: ${user}, DB: ${db}`);
+
+        return {
+          type: 'postgres',
+          host: host,
+          port: 5432,
+          username: user,
+          password: config.get<string>('DATABASE_PASSWORD'),
+          database: db,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: true,
+          logging: true, // Enable TypeORM logging
+        };
+      },
     }),
-    
+
     ProductsModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }
