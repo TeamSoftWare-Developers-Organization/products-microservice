@@ -56,18 +56,7 @@ async function bootstrap() {
       const url = `http://auth-ms:3001${req.originalUrl}`;
       console.log(`[API Gateway] Manual Proxy to: ${url}`);
 
-      // Handle OPTIONS preflight request
-      if (req.method === 'OPTIONS') {
-        const origin = req.headers.origin;
-        if (origin === 'http://localhost:3000' || origin === 'http://app.microshop.local') {
-          res.setHeader('Access-Control-Allow-Origin', origin);
-        }
-        res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.status(204).send();
-        return;
-      }
+
 
       console.log(`[API Gateway] Incoming headers:`, req.headers);
 
@@ -102,7 +91,10 @@ async function bootstrap() {
 
       res.status(response.status);
       response.headers.forEach((value, key) => {
-        res.setHeader(key, value);
+        // Do not forward CORS headers from the downstream service, let the Gateway handle it
+        if (!key.toLowerCase().startsWith('access-control-')) {
+          res.setHeader(key, value);
+        }
       });
 
       const data = await response.text();
@@ -117,7 +109,7 @@ async function bootstrap() {
   });
 
   const port = 80;
-  await app.listen(port);
-  console.log(`[API Gateway] is running on port: ${port}`);
+  await app.listen(8080);
+  console.log(`[API Gateway] is running on port: 8080`);
 }
 bootstrap();
