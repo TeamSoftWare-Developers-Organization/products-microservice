@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config'; // استيراد حزمة الإعدادات
 import { ProductsModule } from './Products/products.module'; // تأكد من استيراد وحدة المنتجات
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ProductsModule } from './Products/products.module'; // تأكد من ا
     }),
 
     ProductsModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],

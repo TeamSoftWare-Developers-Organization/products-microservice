@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getApiUrl } from "@/lib/config";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
@@ -20,7 +22,7 @@ export default function LoginPage() {
         setError("");
 
         try {
-            const res = await fetch("http://localhost:8080/auth/login", {
+            const res = await fetch(`${getApiUrl()}/auth/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

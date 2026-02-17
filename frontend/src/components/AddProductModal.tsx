@@ -17,10 +17,21 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 
+import { getUserRole } from "@/lib/auth";
+import { getApiUrl } from "@/lib/config";
+
+import { useEffect } from "react";
+
 export function AddProductModal() {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [role, setRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        setRole(getUserRole());
+    }, []);
+
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -28,6 +39,10 @@ export function AddProductModal() {
         stock: "",
         isFrozen: false,
     });
+
+    if (role !== 'admin') {
+        return null;
+    }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -43,7 +58,7 @@ export function AddProductModal() {
         setLoading(true);
 
         try {
-            const res = await fetch("http://localhost:8080/products", {
+            const res = await fetch(`${getApiUrl()}/products`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

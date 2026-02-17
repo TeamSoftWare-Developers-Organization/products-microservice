@@ -111,21 +111,19 @@ services:
       RABBITMQ_URL: amqp://rabbitmq:5672
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
 
-  # 4. بوابة الخدمات (API Gateway)
+  # 4. بوابة الخدمات (NGINX API Gateway)
   api-gateway:
-    build:
-      context: ../api-gateway
-      dockerfile: Dockerfile
+    image: nginx:latest
     container_name: api-gateway
     restart: always
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - app-network
     depends_on:
       - products-service
       - orders-service
-      - zipkin
-    environment:
-      ZIPKIN_URL: http://zipkin:9411/api/v2/spans
+      - auth-service
     ports:
       - "8080:80"
 

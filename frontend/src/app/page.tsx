@@ -1,11 +1,14 @@
 import { ProductCard } from "@/components/ProductCard";
+import { getApiUrl } from "@/lib/config";
+
 import { Product } from "@/types";
+
 import { Header } from "@/components/Header";
 import { AddProductModal } from "@/components/AddProductModal";
 
 async function getProducts(): Promise<Product[]> {
   try {
-    const res = await fetch("http://localhost:8080/products", {
+    const res = await fetch(`${getApiUrl()}/products`, {
       cache: "no-store", // SSR: Always fetch fresh data
     });
 

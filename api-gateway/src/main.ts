@@ -17,7 +17,7 @@ async function bootstrap() {
   app.use(express.json());
 
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:3000', 'http://app.microshop.local'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -26,17 +26,17 @@ async function bootstrap() {
   // Middleware for authentication
   const authMiddleware = new AuthMiddleware();
 
-  // بوابة بوابة المنتجات
-  app.use('/products', (req: Request, res: Response, next: NextFunction) => {
-    authMiddleware.use(req, res, () => {
-      proxy('http://products-ms:3002', {
-        proxyReqPathResolver: (req: any) => {
-          const url = req.url === '/' ? '' : req.url;
-          return `/api/products${url}`;
-        },
-      })(req, res, next);
-    });
-  });
+  // // بوابة بوابة المنتجات
+  // app.use('/products', (req: Request, res: Response, next: NextFunction) => {
+  //   authMiddleware.use(req, res, () => {
+  //     proxy('http://products-ms:3002', {
+  //       proxyReqPathResolver: (req: any) => {
+  //         const url = req.url === '/' ? '' : req.url;
+  //         return `/api/products${url}`;
+  //       },
+  //     })(req, res, next);
+  //   });
+  // });
 
   // بوابة بوابة الطلبات
   app.use('/orders', (req: Request, res: Response, next: NextFunction) => {
@@ -58,7 +58,10 @@ async function bootstrap() {
 
       // Handle OPTIONS preflight request
       if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+        const origin = req.headers.origin;
+        if (origin === 'http://localhost:3000' || origin === 'http://app.microshop.local') {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+        }
         res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

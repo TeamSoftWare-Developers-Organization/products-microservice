@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Body, Param, NotFoundException, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, NotFoundException, Inject, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Product } from './product.entity';
 import { EventPattern, Payload } from '@nestjs/microservices';
@@ -16,7 +19,12 @@ export class ProductsController {
 
 
   @Post()
-  async create(@Body() data: any): Promise<Product> {
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
+  async create(@Body() data: any, @Request() req): Promise<Product> {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only admins can create products');
+    }
     // ربط الحقول من الـ curl إلى الكيان (Entity)
     return this.commandBus.execute(new CreateProductCommand(
       data.name,
