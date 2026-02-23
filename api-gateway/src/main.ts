@@ -26,17 +26,17 @@ async function bootstrap() {
   // Middleware for authentication
   const authMiddleware = new AuthMiddleware();
 
-  // // بوابة بوابة المنتجات
-  // app.use('/products', (req: Request, res: Response, next: NextFunction) => {
-  //   authMiddleware.use(req, res, () => {
-  //     proxy('http://products-ms:3002', {
-  //       proxyReqPathResolver: (req: any) => {
-  //         const url = req.url === '/' ? '' : req.url;
-  //         return `/api/products${url}`;
-  //       },
-  //     })(req, res, next);
-  //   });
-  // });
+  // بوابة بوابة المنتجات
+  app.use('/products', (req: Request, res: Response, next: NextFunction) => {
+    authMiddleware.use(req, res, () => {
+      proxy('http://products-ms:3002', {
+        proxyReqPathResolver: (req: any) => {
+          const url = req.url === '/' ? '' : req.url;
+          return `/api/products${url}`;
+        },
+      })(req, res, next);
+    });
+  });
 
   // بوابة بوابة الطلبات
   app.use('/orders', (req: Request, res: Response, next: NextFunction) => {

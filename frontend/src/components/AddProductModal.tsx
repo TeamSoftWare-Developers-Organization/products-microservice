@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 
-import { getUserRole } from "@/lib/auth";
+import { getUserRole, getToken } from "@/lib/auth";
 import { getApiUrl } from "@/lib/config";
 
 import { useEffect } from "react";
@@ -62,6 +62,7 @@ export function AddProductModal() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${getToken()}`,
                 },
                 body: JSON.stringify({
                     name: formData.name,
