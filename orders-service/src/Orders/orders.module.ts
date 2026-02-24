@@ -28,7 +28,7 @@ export const QueryHandlers = [GetOrdersHandler];
                         urls: [config.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
                         queue: 'products_queue',
                         queueOptions: {
-                            durable: false,
+                            durable: true,
                         },
                     },
                 }),

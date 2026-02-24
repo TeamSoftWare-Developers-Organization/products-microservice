@@ -16,99 +16,109 @@ async function bootstrap() {
   const express = require('express');
   app.use(express.json());
 
-  app.enableCors({
-    origin: ['http://localhost:3000', 'http://app.microshop.local'],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
+
   const proxy = require('express-http-proxy');
+  const CircuitBreaker = require('opossum');
+
+  // Helper for Circuit Breaker logic
+  const createServiceProxy = (targetUrl: string, serviceName: string) => {
+    const proxyMiddleware = proxy(targetUrl, {
+      proxyReqPathResolver: (req: any) => {
+        const url = req.url === '/' ? '' : req.url;
+        return `${req.baseUrl}${url}`;
+      },
+      proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
+        next(err);
+      }
+    });
+
+    const breaker = new CircuitBreaker(async (req: Request, res: Response) => {
+      return new Promise((resolve, reject) => {
+        // We use a custom 'finish' listener to know when the proxying is done
+        res.on('finish', () => resolve(undefined));
+        res.on('close', () => resolve(undefined));
+
+        proxyMiddleware(req, res, (err: any) => {
+          if (err) reject(err);
+        });
+      });
+    }, {
+      timeout: 10000, // Increased timeout for heavy requests
+      errorThresholdPercentage: 50,
+      resetTimeout: 30000
+    });
+
+    breaker.fallback(() => ({ message: `${serviceName} is currently unavailable. Please try again later.` }));
+
+    return async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await breaker.fire(req, res);
+      } catch (err: any) {
+        if (!res.headersSent) {
+          res.status(503).json(breaker.opened ?
+            { message: `${serviceName} Circuit Breaker is OPEN`, error: err.message } :
+            { message: `${serviceName} request failed`, error: err.message });
+        }
+      }
+    };
+  };
 
   // Middleware for authentication
   const authMiddleware = new AuthMiddleware();
 
+  const productsProxy = createServiceProxy('http://products-ms:3002', 'Products Service');
+  const ordersProxy = createServiceProxy('http://orders-ms:3003', 'Orders Service');
+
   // بوابة بوابة المنتجات
-  app.use('/products', (req: Request, res: Response, next: NextFunction) => {
+  app.use('/api/products', (req: Request, res: Response, next: NextFunction) => {
     authMiddleware.use(req, res, () => {
-      proxy('http://products-ms:3002', {
-        proxyReqPathResolver: (req: any) => {
-          const url = req.url === '/' ? '' : req.url;
-          return `/api/products${url}`;
-        },
-      })(req, res, next);
+      productsProxy(req, res, next);
     });
   });
 
   // بوابة بوابة الطلبات
-  app.use('/orders', (req: Request, res: Response, next: NextFunction) => {
+  app.use('/api/orders', (req: Request, res: Response, next: NextFunction) => {
     authMiddleware.use(req, res, () => {
-      proxy('http://orders-ms:3003', {
-        proxyReqPathResolver: (req: any) => {
-          const url = req.url === '/' ? '' : req.url;
-          return `/api/orders${url}`;
-        },
-      })(req, res, next);
+      ordersProxy(req, res, next);
     });
   });
 
-  // بوابة خدمة الهوية - Manual Proxy
-  app.use('/auth', async (req: Request, res: Response, next: NextFunction) => {
+  // بوابة خدمة الهوية - Manual Proxy (also adding breaker here)
+  const authBreaker = new CircuitBreaker(async (url: string, options: any) => {
+    const response = await fetch(url, options);
+    if (!response.ok && response.status >= 500) throw new Error(`Auth Service Error: ${response.status}`);
+    return response;
+  }, { timeout: 5000 });
+
+  app.use('/api/auth', async (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'OPTIONS') return next();
+
     try {
-      const url = `http://auth-ms:3001${req.originalUrl}`;
-      console.log(`[API Gateway] Manual Proxy to: ${url}`);
-
-
-
-      console.log(`[API Gateway] Incoming headers:`, req.headers);
-
+      const url = `http://auth-ms:3001/auth${req.url}`;
       const headers: Record<string, string> = {};
-      // Only forward specific headers for now to debug
-      if (req.headers['content-type']) {
-        headers['content-type'] = req.headers['content-type'] as string;
-      }
-      if (req.headers['authorization']) {
-        headers['authorization'] = req.headers['authorization'] as string;
-      }
+      if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'] as string;
+      if (req.headers['authorization']) headers['authorization'] = req.headers['authorization'] as string;
 
-      let body = undefined;
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
-        console.log(`[API Gateway] Request body object keys:`, Object.keys(req.body || {}));
-        body = JSON.stringify(req.body);
-        console.log(`[API Gateway] Stringified body length:`, body ? body.length : 0);
+      let body = req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined;
+      if (body && !headers['content-type']) headers['content-type'] = 'application/json';
 
-        if (!headers['content-type']) {
-          headers['content-type'] = 'application/json';
-        }
-      }
-
-      // Fetch should be outside the body preparation block
-      const response = await fetch(url, {
+      const response = await authBreaker.fire(url, {
         method: req.method,
         headers: headers,
         body: body,
       });
 
-      console.log(`[API Gateway] Received from auth-ms: ${response.status}`);
-
       res.status(response.status);
-      response.headers.forEach((value, key) => {
-        // Do not forward CORS headers from the downstream service, let the Gateway handle it
-        if (!key.toLowerCase().startsWith('access-control-')) {
-          res.setHeader(key, value);
-        }
+      response.headers.forEach((value: string, key: string) => {
+        if (!key.toLowerCase().startsWith('access-control-')) res.setHeader(key, value);
       });
-
-      const data = await response.text();
-      res.send(data);
-
-    } catch (error) {
-      console.error('[API Gateway] Manual Proxy Error:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ message: 'Proxy Error', error: String(error) });
-      }
+      res.send(await response.text());
+    } catch (error: any) {
+      console.error('[API Gateway] Auth Proxy Error:', error);
+      if (!res.headersSent) res.status(503).json({ message: 'Auth Service unavailable', error: error.message });
     }
   });
 
-  const port = 80;
   await app.listen(8080);
   console.log(`[API Gateway] is running on port: 8080`);
 }

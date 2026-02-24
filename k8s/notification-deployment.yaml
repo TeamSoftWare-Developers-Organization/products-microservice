@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-ms
+  template:
+    metadata:
+      labels:
+        app: notification-ms
+    spec:
+      containers:
+        - name: notification
+          image: notification-service:v2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3004
+          env:
+            - name: RABBITMQ_URL
+              value: "amqp://rabbitmq:5672"
+            - name: ZIPKIN_URL
+              value: "http://zipkin:9411/api/v2/spans"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-ms
+  ports:
+    - protocol: TCP
+      port: 3004
+      targetPort: 3004
+  type: ClusterIP

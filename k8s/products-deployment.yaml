@@ -13,30 +13,30 @@ spec:
         app: products-ms
     spec:
       containers:
-      - name: products-service
-        image: products-service:latest # Replace with your actual image
-        imagePullPolicy: IfNotPresent # Useful for local development with Minikube/Docker Desktop
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        ports:
-        - containerPort: 3002
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: DATABASE_HOST
-          value: "products-db" # Assumes a K8s Service named products-db exists
-        - name: DATABASE_NAME
-          value: "products_db"
-        - name: DATABASE_USER
-          value: "postgres"
-        - name: DATABASE_PASSWORD
-          value: "zafer4519932093" # Consider using Secrets for production
-        - name: RABBITMQ_URL
-          value: "amqp://rabbitmq:5672" # Assumes a K8s Service named rabbitmq exists
-        - name: ZIPKIN_URL
-          value: "http://zipkin:9411/api/v2/spans" # Assumes a K8s Service named zipkin exists
+        - name: products-service
+          image: products-service:v2 # Replace with your actual image
+          imagePullPolicy: IfNotPresent # Useful for local development with Minikube/Docker Desktop
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 3002
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: DATABASE_HOST
+              value: "products-db" # Assumes a K8s Service named products-db exists
+            - name: DATABASE_NAME
+              value: "products_db"
+            - name: DATABASE_USER
+              value: "postgres"
+            - name: DATABASE_PASSWORD
+              value: "zafer4519932093" # Consider using Secrets for production
+            - name: RABBITMQ_URL
+              value: "amqp://rabbitmq:5672" # Assumes a K8s Service named rabbitmq exists
+            - name: ZIPKIN_URL
+              value: "http://zipkin:9411/api/v2/spans" # Assumes a K8s Service named zipkin exists

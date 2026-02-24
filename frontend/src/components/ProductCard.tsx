@@ -7,6 +7,7 @@ import { Product } from "@/types";
 import { getToken, isAuthenticated } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { getApiUrl } from "@/lib/config";
 
 interface ProductCardProps {
     product: Product;
@@ -25,7 +26,7 @@ export function ProductCard({ product }: ProductCardProps) {
         setLoading(true);
         try {
             const token = getToken();
-            const res = await fetch("http://localhost:8080/orders", {
+            const res = await fetch(`${getApiUrl()}/orders`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

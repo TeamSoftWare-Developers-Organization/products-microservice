@@ -9,13 +9,15 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const RABBITMQ_URL = configService.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672';
 
+
+
   app.connectMicroservice({
     transport: Transport.RMQ,
     options: {
       urls: [RABBITMQ_URL],
       queue: 'orders_queue',
       queueOptions: {
-        durable: false,
+        durable: true,
       },
     },
   });

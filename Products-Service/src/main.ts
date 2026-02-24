@@ -9,7 +9,7 @@ import { Transport } from '@nestjs/microservices';
 async function bootstrap() {
   // إنشاء تطبيق هجين (HTTP API و RabbitMQ Microservice)
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+
 
   // جلب خدمة الإعدادات
   const configService = app.get(ConfigService);
@@ -22,7 +22,7 @@ async function bootstrap() {
       urls: [RABBITMQ_URL],
       queue: 'products_queue',
       queueOptions: {
-        durable: false,
+        durable: true,
       },
     },
   });
