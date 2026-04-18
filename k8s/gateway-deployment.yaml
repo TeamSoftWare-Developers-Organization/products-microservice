@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: api-gateway:v2 # Using v2 for the 504 fix
+          image: api-gateway:v5
           imagePullPolicy: Always
           files: # None needed beyond code
           ports:

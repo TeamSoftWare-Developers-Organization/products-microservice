@@ -5,8 +5,8 @@ import * as jwt from 'jsonwebtoken';
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
     use(req: Request, res: Response, next: NextFunction) {
-        // Enforce authentication ONLY for POST /orders
-        const isOrderPost = (req.originalUrl === '/orders' || req.originalUrl.startsWith('/orders?')) && req.method === 'POST';
+        // Enforce authentication ONLY for POST /api/orders (Note: Ingress or main.ts might include /api)
+        const isOrderPost = (req.originalUrl === '/api/orders' || req.originalUrl === '/orders') && req.method === 'POST';
 
         if (!isOrderPost) {
             return next();

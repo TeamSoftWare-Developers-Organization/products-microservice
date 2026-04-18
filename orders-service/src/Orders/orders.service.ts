@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './order.entity';
 import { ResilienceService } from './resilience.service';
+import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class OrdersService {
@@ -10,6 +11,7 @@ export class OrdersService {
         @InjectRepository(Order)
         private ordersRepository: Repository<Order>,
         private resilienceService: ResilienceService,
+        @Inject('NOTIFICATION_SERVICE') private notificationClient: ClientProxy,
     ) { }
 
     async createOrder(productId: number, quantity: number): Promise<Order> {
@@ -24,10 +26,15 @@ export class OrdersService {
                 productId,
                 quantity
             });
+
+            // Also notify notification service directly if we want
+            this.notificationClient.emit('order_created', {
+                orderId: savedOrder.id,
+                productId,
+                quantity
+            });
         } catch (error) {
             console.error(`[Orders Service] Circuit Breaker blocked/failed emit: ${error.message}`);
-            // هنا يظل الطلب محفوظاً في قاعدة البيانات بحالة PENDING
-            // يمكن لاحقاً إضافة آلية لإعادة المحاولة (Retry Mechanism)
         }
 
         return savedOrder;
@@ -36,11 +43,13 @@ export class OrdersService {
     async confirmOrder(orderId: number) {
         console.log(`[Orders Service] Confirming order ${orderId}`);
         await this.ordersRepository.update(orderId, { status: 'CONFIRMED' });
+        this.notificationClient.emit('order_confirmed', { orderId });
     }
 
     async rejectOrder(orderId: number) {
         console.log(`[Orders Service] Rejecting order ${orderId}`);
         await this.ordersRepository.update(orderId, { status: 'REJECTED' });
+        this.notificationClient.emit('order_rejected', { orderId });
     }
 
     async findAll(): Promise<Order[]> {

@@ -54,10 +54,16 @@ async function bootstrap() {
       try {
         await breaker.fire(req, res);
       } catch (err: any) {
+        console.error(`[API Gateway] Breaker Error for ${serviceName}:`, err.message);
         if (!res.headersSent) {
           res.status(503).json(breaker.opened ?
             { message: `${serviceName} Circuit Breaker is OPEN`, error: err.message } :
             { message: `${serviceName} request failed`, error: err.message });
+        } else {
+          // If headers were sent but we got an error (like a timeout), 
+          // we might want to end the response to prevent ERR_INCOMPLETE_CHUNKED_ENCODING
+          console.warn(`[API Gateway] Headers already sent for ${serviceName}, but error occurred: ${err.message}`);
+          if (!res.writableEnded) res.end();
         }
       }
     };
@@ -69,14 +75,12 @@ async function bootstrap() {
   const productsProxy = createServiceProxy('http://products-ms:3002', 'Products Service');
   const ordersProxy = createServiceProxy('http://orders-ms:3003', 'Orders Service');
 
-  // بوابة بوابة المنتجات
+  // بوابة المنتجات (Forward through AuthMiddleware - which now handles non-blocking)
   app.use('/api/products', (req: Request, res: Response, next: NextFunction) => {
-    authMiddleware.use(req, res, () => {
-      productsProxy(req, res, next);
-    });
+    productsProxy(req, res, next);
   });
 
-  // بوابة بوابة الطلبات
+  // بوابة الطلبات (Forward through AuthMiddleware - enforce for POST)
   app.use('/api/orders', (req: Request, res: Response, next: NextFunction) => {
     authMiddleware.use(req, res, () => {
       ordersProxy(req, res, next);

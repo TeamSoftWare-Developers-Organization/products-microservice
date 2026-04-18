@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { Bell } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 
 export function NotificationListener() {

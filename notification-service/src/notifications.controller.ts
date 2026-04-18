@@ -15,4 +15,14 @@ export class NotificationsController {
             data: data,
         });
     }
+
+    @EventPattern('order_confirmed')
+    async handleOrderConfirmed(@Payload() data: any) {
+        console.log('[Notification Service] Received order_confirmed event:', data);
+        this.gateway.sendOrderNotification({
+            type: 'ORDER_CONFIRMED',
+            message: `تم تأكيد طلبك رقم ${data.orderId} بنجاح!`,
+            data: data,
+        });
+    }
 }

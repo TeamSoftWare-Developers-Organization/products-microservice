@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: products-service
-          image: products-service:v2 # Replace with your actual image
+          image: products-service:v5 # Replace with your actual image
           imagePullPolicy: IfNotPresent # Useful for local development with Minikube/Docker Desktop
           resources:
             requests:

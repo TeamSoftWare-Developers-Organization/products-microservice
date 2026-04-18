@@ -1,24 +1,18 @@
-FROM node:20-slim AS base
-
+# المرحلة الأولى: البناء (Build)
+FROM node:20-alpine AS builder
 WORKDIR /app
-
 COPY package*.json ./
-
 RUN npm install
-
 COPY . .
-
 RUN npm run build
+# تثبيت تبعات الإنتاج لنسخها للحاوية الفارغة
+RUN npm install --omit=dev
 
-FROM node:20-slim AS runner
-
+# المرحلة الثانية: التشغيل (Production - Distroless)
+FROM gcr.io/distroless/nodejs20-debian11
 WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
 
-COPY --from=base /app/package*.json ./
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/dist ./dist
-
-# Add metadata labels
-LABEL app=notification-service
-
-CMD ["node", "dist/main"]
+CMD ["dist/main.js"]

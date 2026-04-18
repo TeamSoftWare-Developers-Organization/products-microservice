@@ -14,11 +14,20 @@ spec:
     spec:
       containers:
         - name: notification
-          image: notification-service:v2
+          image: notification-service:v3
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
           ports:
             - containerPort: 3004
           env:
+            - name: NODE_ENV
+              value: "production"
             - name: RABBITMQ_URL
               value: "amqp://rabbitmq:5672"
             - name: ZIPKIN_URL
@@ -27,7 +36,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: notification-service
+  name: notification-ms
 spec:
   selector:
     app: notification-ms

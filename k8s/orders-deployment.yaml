@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: orders-service
-          image: orders-service:v2
+          image: orders-service:v5
           imagePullPolicy: IfNotPresent
           resources:
             requests:

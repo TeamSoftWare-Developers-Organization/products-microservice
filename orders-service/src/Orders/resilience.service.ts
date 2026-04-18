@@ -6,6 +6,7 @@ const CircuitBreaker = require('opossum');
 @Injectable()
 export class ResilienceService implements OnModuleInit {
     private breaker: any;
+    private actionBreakers: Map<string, any> = new Map();
 
     constructor(@Inject('PRODUCT_SERVICE') private client: ClientProxy) { }
 
@@ -41,12 +42,14 @@ export class ResilienceService implements OnModuleInit {
     /**
      * لتغليف أي عملية برمجية أخرى (مثل حفظ الطلب في الـ Controller)
      */
-    async fireAction(action: Function, ...args: any[]) {
-        const actionBreaker = new CircuitBreaker(action, {
-            timeout: 3000,
-            errorThresholdPercentage: 50,
-            resetTimeout: 10000
-        });
-        return actionBreaker.fire(...args);
+    async fireAction(action: Function, actionName: string = 'default') {
+        if (!this.actionBreakers.has(actionName)) {
+            this.actionBreakers.set(actionName, new CircuitBreaker(action, {
+                timeout: 5000,
+                errorThresholdPercentage: 50,
+                resetTimeout: 10000
+            }));
+        }
+        return this.actionBreakers.get(actionName).fire();
     }
 }

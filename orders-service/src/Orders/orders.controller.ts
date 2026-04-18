@@ -19,7 +19,8 @@ export class OrdersController {
     async create(@Body() data: { productId: number; quantity: number }) {
         // تغليف استدعاء الخدمة داخل قاطع الدائرة لزيادة المرونة
         return this.resilienceService.fireAction(
-            () => this.commandBus.execute(new CreateOrderCommand(data.productId, data.quantity))
+            () => this.commandBus.execute(new CreateOrderCommand(data.productId, data.quantity)),
+            'createOrder'
         );
     }
 

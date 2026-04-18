@@ -34,6 +34,21 @@ export const QueryHandlers = [GetOrdersHandler];
                 }),
                 inject: [ConfigService],
             },
+            {
+                name: 'NOTIFICATION_SERVICE',
+                imports: [ConfigModule],
+                useFactory: (config: ConfigService) => ({
+                    transport: Transport.RMQ,
+                    options: {
+                        urls: [config.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
+                        queue: 'notifications_queue',
+                        queueOptions: {
+                            durable: true,
+                        },
+                    },
+                }),
+                inject: [ConfigService],
+            },
         ]),
         CqrsModule,
     ],
