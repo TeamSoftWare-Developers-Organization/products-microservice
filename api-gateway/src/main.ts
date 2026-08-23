@@ -22,23 +22,34 @@ async function bootstrap() {
 
   // Helper for Circuit Breaker logic
   const createServiceProxy = (targetUrl: string, serviceName: string) => {
-    const proxyMiddleware = proxy(targetUrl, {
-      proxyReqPathResolver: (req: any) => {
-        const url = req.url === '/' ? '' : req.url;
-        return `${req.baseUrl}${url}`;
-      },
-      proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
-        next(err);
-      }
-    });
-
     const breaker = new CircuitBreaker(async (req: Request, res: Response) => {
+      console.log(`[Breaker ${serviceName}] Action function started for ${req.method} ${req.url}`);
       return new Promise((resolve, reject) => {
-        // We use a custom 'finish' listener to know when the proxying is done
-        res.on('finish', () => resolve(undefined));
-        res.on('close', () => resolve(undefined));
+        const proxyMiddleware = proxy(targetUrl, {
+          proxyReqPathResolver: (req: any) => {
+            const url = req.url === '/' ? '' : req.url;
+            console.log(`[Breaker ${serviceName}] proxyReqPathResolver called: baseUrl=${req.baseUrl}, url=${url}`);
+            return `${req.baseUrl}${url}`;
+          },
+          proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
+            console.error(`[Breaker ${serviceName}] proxyErrorHandler caught:`, err);
+            reject(err);
+          }
+        });
 
+        // We use a custom 'finish' listener to know when the proxying is done
+        res.on('finish', () => {
+          console.log(`[Breaker ${serviceName}] res finished`);
+          resolve(undefined);
+        });
+        res.on('close', () => {
+          console.log(`[Breaker ${serviceName}] res closed`);
+          resolve(undefined);
+        });
+
+        console.log(`[Breaker ${serviceName}] calling proxyMiddleware`);
         proxyMiddleware(req, res, (err: any) => {
+          console.log(`[Breaker ${serviceName}] proxyMiddleware callback called with err:`, err);
           if (err) reject(err);
         });
       });
@@ -48,13 +59,14 @@ async function bootstrap() {
       resetTimeout: 30000
     });
 
-    breaker.fallback(() => ({ message: `${serviceName} is currently unavailable. Please try again later.` }));
 
     return async (req: Request, res: Response, next: NextFunction) => {
+      console.log(`[Breaker ${serviceName}] Middleware invoked`);
       try {
         await breaker.fire(req, res);
+        console.log(`[Breaker ${serviceName}] breaker.fire completed successfully`);
       } catch (err: any) {
-        console.error(`[API Gateway] Breaker Error for ${serviceName}:`, err.message);
+        console.error(`[API Gateway] Breaker Error catch for ${serviceName}:`, err.message);
         if (!res.headersSent) {
           res.status(503).json(breaker.opened ?
             { message: `${serviceName} Circuit Breaker is OPEN`, error: err.message } :
@@ -74,20 +86,44 @@ async function bootstrap() {
 
   const productsProxy = createServiceProxy('http://products-ms:3002', 'Products Service');
   const ordersProxy = createServiceProxy('http://orders-ms:3003', 'Orders Service');
+  const shippingProxy = createServiceProxy('http://shipping-ms:3006', 'Shipping Service');
+  const cartProxy = createServiceProxy('http://cart-ms:3007', 'Cart Service');
+  const paymentProxy = createServiceProxy('http://payment-ms:3009', 'Payment Service');
 
-  // بوابة المنتجات (Forward through AuthMiddleware - which now handles non-blocking)
+  // بوابة المنتجات
   app.use('/api/products', (req: Request, res: Response, next: NextFunction) => {
     productsProxy(req, res, next);
   });
 
-  // بوابة الطلبات (Forward through AuthMiddleware - enforce for POST)
+  // بوابة الطلبات
   app.use('/api/orders', (req: Request, res: Response, next: NextFunction) => {
     authMiddleware.use(req, res, () => {
       ordersProxy(req, res, next);
     });
   });
 
-  // بوابة خدمة الهوية - Manual Proxy (also adding breaker here)
+  // بوابة خدمة الشحن
+  app.use('/api/shipping', (req: Request, res: Response, next: NextFunction) => {
+    authMiddleware.use(req, res, () => {
+      shippingProxy(req, res, next);
+    });
+  });
+
+  // بوابة خدمة السلة
+  app.use('/api/cart', (req: Request, res: Response, next: NextFunction) => {
+    authMiddleware.use(req, res, () => {
+      cartProxy(req, res, next);
+    });
+  });
+
+  // بوابة خدمة الدفع المحلي
+  app.use('/api/payments', (req: Request, res: Response, next: NextFunction) => {
+    authMiddleware.use(req, res, () => {
+      paymentProxy(req, res, next);
+    });
+  });
+
+  // بوابة خدمة الهوية
   const authBreaker = new CircuitBreaker(async (url: string, options: any) => {
     const response = await fetch(url, options);
     if (!response.ok && response.status >= 500) throw new Error(`Auth Service Error: ${response.status}`);
@@ -98,13 +134,21 @@ async function bootstrap() {
     if (req.method === 'OPTIONS') return next();
 
     try {
-      const url = `http://auth-ms:3001/auth${req.url}`;
+      const path = req.url.startsWith('/') ? req.url : `/${req.url}`;
+      const url = `http://auth-ms:3001/auth${path}`;
       const headers: Record<string, string> = {};
       if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'] as string;
       if (req.headers['authorization']) headers['authorization'] = req.headers['authorization'] as string;
 
-      let body = req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined;
-      if (body && !headers['content-type']) headers['content-type'] = 'application/json';
+      let body: string | undefined = undefined;
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        if (typeof req.body === 'string') {
+          body = req.body;
+        } else if (req.body && typeof req.body === 'object') {
+          body = JSON.stringify(req.body);
+        }
+        if (!headers['content-type']) headers['content-type'] = 'application/json';
+      }
 
       const response = await authBreaker.fire(url, {
         method: req.method,

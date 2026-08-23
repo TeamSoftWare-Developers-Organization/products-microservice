@@ -1,11 +1,316 @@
 services:
+  # --- Databases ---
+  auth-db:
+    image: postgres:16-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zafer4519932093
+    ports:
+      - "5432:5432"
+    restart: always
+
+  products-db:
+    image: postgres:16-alpine
+    container_name: products-db
+    environment:
+      POSTGRES_DB: products_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zafer4519932093
+    ports:
+      - "5433:5432"
+    restart: always
+
+  orders-db:
+    image: postgres:16-alpine
+    container_name: orders-db
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zafer4519932093
+    ports:
+      - "5434:5432"
+    restart: always
+
+  payment-db:
+    image: postgres:16-alpine
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zafer4519932093
+    ports:
+      - "5435:5432"
+    restart: always
+
+  shipping-db:
+    image: postgres:16-alpine
+    container_name: shipping-db
+    environment:
+      POSTGRES_DB: shipping_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zafer4519932093
+    ports:
+      - "5436:5432"
+    restart: always
+
+  warehouse-db:
+    image: postgres:16-alpine
+    container_name: warehouse-db
+    environment:
+      POSTGRES_DB: warehouse_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zafer4519932093
+    ports:
+      - "5437:5432"
+    restart: always
+
+  # --- Infrastructure Services ---
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: always
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    restart: always
+
+  # --- Microservices ---
+  auth-ms:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-ms
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: auth-db
+      DATABASE_NAME: auth_db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: zafer4519932093
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      JWT_SECRET: super_secret_key_123
+    depends_on:
+      - auth-db
+      - rabbitmq
+    restart: always
+
+  products-ms:
+    build:
+      context: ./Products-Service
+      dockerfile: Dockerfile
+    container_name: products-ms
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: products-db
+      DATABASE_NAME: products_db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: zafer4519932093
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      ZIPKIN_URL: http://zipkin:9411/api/v2/spans
+      MINIO_ENDPOINT: ${S3_ENDPOINT:-minio}
+      MINIO_PORT: ${S3_PORT:-9000}
+      MINIO_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-products}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      S3_REGION: ${S3_REGION:-auto}
+    depends_on:
+      - products-db
+      - rabbitmq
+      - zipkin
+      - minio
+    restart: always
+
+  cart-ms:
+    build:
+      context: ./cart-service
+      dockerfile: Dockerfile
+    container_name: cart-ms
+    ports:
+      - "3007:3007"
+    environment:
+      NODE_ENV: production
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      PORT: 3007
+    depends_on:
+      - rabbitmq
+    restart: always
+
+  orders-ms:
+    build:
+      context: ./orders-service
+      dockerfile: Dockerfile
+    container_name: orders-ms
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: orders-db
+      DATABASE_NAME: orders_db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: zafer4519932093
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      ZIPKIN_URL: http://zipkin:9411/api/v2/spans
+    depends_on:
+      - orders-db
+      - rabbitmq
+      - zipkin
+    restart: always
+
+  payment-ms:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-ms
+    ports:
+      - "3009:3009"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: payment-db
+      DATABASE_NAME: payment_db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: zafer4519932093
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      - payment-db
+      - rabbitmq
+    restart: always
+
+  shipping-ms:
+    build:
+      context: ./shipping-service
+      dockerfile: Dockerfile
+    container_name: shipping-ms
+    ports:
+      - "3006:3006"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: shipping-db
+      DATABASE_NAME: shipping_db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: zafer4519932093
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      - shipping-db
+      - rabbitmq
+    restart: always
+
+  warehouse-ms:
+    build:
+      context: ./warehouse-service
+      dockerfile: Dockerfile
+    container_name: warehouse-ms
+    ports:
+      - "3008:3008"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: warehouse-db
+      DATABASE_NAME: warehouse_db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: zafer4519932093
+      RABBITMQ_URL: amqp://rabbitmq:5672
+    depends_on:
+      - warehouse-db
+      - rabbitmq
+    restart: always
+
+  notification-ms:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-ms
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: production
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      ZIPKIN_URL: http://zipkin:9411/api/v2/spans
+    depends_on:
+      - rabbitmq
+      - zipkin
+    restart: always
+
+  api-gateway-ms:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway-ms
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - auth-ms
+      - products-ms
+      - orders-ms
+      - cart-ms
+      - shipping-ms
+      - payment-ms
+    restart: always
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx-proxy
+    ports:
+      - "8085:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-gateway-ms
+      - notification-ms
+      - minio
+    restart: always
+
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.runner
     container_name: frontend
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      NODE_ENV: production
+      INTERNAL_API_URL: http://api-gateway-ms:8080
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+    depends_on:
+      - api-gateway-ms
     restart: always
+
+  # --- Cloudflare Zero Trust Tunnel ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: microshop-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-eyJhIjoiMTYxNjQ2NGUxMGQxM2U0MjZkYWJkODc2ZDEzMGNlYmEiLCJ0IjoiNTZjM2Y0NWYtYTQxZS00NTczLWE1YmUtYjIwOThlNWQxMzU0IiwicyI6Ik5qYzRaamxtWmpRdE9EWTNOQzAwWTJOakxXRmtPREV0TlRRM1lqVTBPV1E1WWpCbCJ9}
+    depends_on:
+      - nginx
+      - notification-ms
+

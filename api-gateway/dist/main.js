@@ -12,75 +12,141 @@ async function bootstrap() {
     });
     const express = require('express');
     app.use(express.json());
-    app.enableCors({
-        origin: 'http://localhost:3000',
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        credentials: true,
-    });
     const proxy = require('express-http-proxy');
-    const authMiddleware = new auth_middleware_1.AuthMiddleware();
-    app.use('/orders', (req, res, next) => {
-        authMiddleware.use(req, res, () => {
-            proxy('http://orders-ms:3003', {
-                proxyReqPathResolver: (req) => {
-                    const url = req.url === '/' ? '' : req.url;
-                    return `/api/orders${url}`;
-                },
-            })(req, res, next);
+    const CircuitBreaker = require('opossum');
+    const createServiceProxy = (targetUrl, serviceName) => {
+        const breaker = new CircuitBreaker(async (req, res) => {
+            console.log(`[Breaker ${serviceName}] Action function started for ${req.method} ${req.url}`);
+            return new Promise((resolve, reject) => {
+                const proxyMiddleware = proxy(targetUrl, {
+                    proxyReqPathResolver: (req) => {
+                        const url = req.url === '/' ? '' : req.url;
+                        console.log(`[Breaker ${serviceName}] proxyReqPathResolver called: baseUrl=${req.baseUrl}, url=${url}`);
+                        return `${req.baseUrl}${url}`;
+                    },
+                    proxyErrorHandler: (err, res, next) => {
+                        console.error(`[Breaker ${serviceName}] proxyErrorHandler caught:`, err);
+                        reject(err);
+                    }
+                });
+                res.on('finish', () => {
+                    console.log(`[Breaker ${serviceName}] res finished`);
+                    resolve(undefined);
+                });
+                res.on('close', () => {
+                    console.log(`[Breaker ${serviceName}] res closed`);
+                    resolve(undefined);
+                });
+                console.log(`[Breaker ${serviceName}] calling proxyMiddleware`);
+                proxyMiddleware(req, res, (err) => {
+                    console.log(`[Breaker ${serviceName}] proxyMiddleware callback called with err:`, err);
+                    if (err)
+                        reject(err);
+                });
+            });
+        }, {
+            timeout: 10000,
+            errorThresholdPercentage: 50,
+            resetTimeout: 30000
         });
-    });
-    app.use('/auth', async (req, res, next) => {
-        try {
-            const url = `http://auth-ms:3001${req.originalUrl}`;
-            console.log(`[API Gateway] Manual Proxy to: ${url}`);
-            if (req.method === 'OPTIONS') {
-                res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-                res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-                res.setHeader('Access-Control-Allow-Credentials', 'true');
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-                res.status(204).send();
-                return;
+        return async (req, res, next) => {
+            console.log(`[Breaker ${serviceName}] Middleware invoked`);
+            try {
+                await breaker.fire(req, res);
+                console.log(`[Breaker ${serviceName}] breaker.fire completed successfully`);
             }
-            console.log(`[API Gateway] Incoming headers:`, req.headers);
-            const headers = {};
-            if (req.headers['content-type']) {
-                headers['content-type'] = req.headers['content-type'];
-            }
-            if (req.headers['authorization']) {
-                headers['authorization'] = req.headers['authorization'];
-            }
-            let body = undefined;
-            if (req.method !== 'GET' && req.method !== 'HEAD') {
-                console.log(`[API Gateway] Request body object keys:`, Object.keys(req.body || {}));
-                body = JSON.stringify(req.body);
-                console.log(`[API Gateway] Stringified body length:`, body ? body.length : 0);
-                if (!headers['content-type']) {
-                    headers['content-type'] = 'application/json';
+            catch (err) {
+                console.error(`[API Gateway] Breaker Error catch for ${serviceName}:`, err.message);
+                if (!res.headersSent) {
+                    res.status(503).json(breaker.opened ?
+                        { message: `${serviceName} Circuit Breaker is OPEN`, error: err.message } :
+                        { message: `${serviceName} request failed`, error: err.message });
+                }
+                else {
+                    console.warn(`[API Gateway] Headers already sent for ${serviceName}, but error occurred: ${err.message}`);
+                    if (!res.writableEnded)
+                        res.end();
                 }
             }
-            const response = await fetch(url, {
+        };
+    };
+    const authMiddleware = new auth_middleware_1.AuthMiddleware();
+    const productsProxy = createServiceProxy('http://products-ms:3002', 'Products Service');
+    const ordersProxy = createServiceProxy('http://orders-ms:3003', 'Orders Service');
+    const shippingProxy = createServiceProxy('http://shipping-ms:3006', 'Shipping Service');
+    const cartProxy = createServiceProxy('http://cart-ms:3007', 'Cart Service');
+    const paymentProxy = createServiceProxy('http://payment-ms:3009', 'Payment Service');
+    app.use('/api/products', (req, res, next) => {
+        productsProxy(req, res, next);
+    });
+    app.use('/api/orders', (req, res, next) => {
+        authMiddleware.use(req, res, () => {
+            ordersProxy(req, res, next);
+        });
+    });
+    app.use('/api/shipping', (req, res, next) => {
+        authMiddleware.use(req, res, () => {
+            shippingProxy(req, res, next);
+        });
+    });
+    app.use('/api/cart', (req, res, next) => {
+        authMiddleware.use(req, res, () => {
+            cartProxy(req, res, next);
+        });
+    });
+    app.use('/api/payments', (req, res, next) => {
+        authMiddleware.use(req, res, () => {
+            paymentProxy(req, res, next);
+        });
+    });
+    const authBreaker = new CircuitBreaker(async (url, options) => {
+        const response = await fetch(url, options);
+        if (!response.ok && response.status >= 500)
+            throw new Error(`Auth Service Error: ${response.status}`);
+        return response;
+    }, { timeout: 5000 });
+    app.use('/api/auth', async (req, res, next) => {
+        if (req.method === 'OPTIONS')
+            return next();
+        try {
+            const path = req.url.startsWith('/') ? req.url : `/${req.url}`;
+            const url = `http://auth-ms:3001/auth${path}`;
+            const headers = {};
+            if (req.headers['content-type'])
+                headers['content-type'] = req.headers['content-type'];
+            if (req.headers['authorization'])
+                headers['authorization'] = req.headers['authorization'];
+            let body = undefined;
+            if (req.method !== 'GET' && req.method !== 'HEAD') {
+                if (typeof req.body === 'string') {
+                    body = req.body;
+                }
+                else if (req.body && typeof req.body === 'object') {
+                    body = JSON.stringify(req.body);
+                }
+                if (!headers['content-type'])
+                    headers['content-type'] = 'application/json';
+            }
+            const response = await authBreaker.fire(url, {
                 method: req.method,
                 headers: headers,
                 body: body,
             });
-            console.log(`[API Gateway] Received from auth-ms: ${response.status}`);
             res.status(response.status);
             response.headers.forEach((value, key) => {
-                res.setHeader(key, value);
+                if (!key.toLowerCase().startsWith('access-control-'))
+                    res.setHeader(key, value);
             });
-            const data = await response.text();
-            res.send(data);
+            res.send(await response.text());
         }
         catch (error) {
-            console.error('[API Gateway] Manual Proxy Error:', error);
-            if (!res.headersSent) {
-                res.status(500).json({ message: 'Proxy Error', error: String(error) });
-            }
+            console.error('[API Gateway] Auth Proxy Error:', error);
+            if (!res.headersSent)
+                res.status(503).json({ message: 'Auth Service unavailable', error: error.message });
         }
     });
-    const port = 80;
-    await app.listen(port);
-    console.log(`[API Gateway] is running on port: ${port}`);
+    await app.listen(8080);
+    console.log(`[API Gateway] is running on port: 8080`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map
