@@ -7,7 +7,7 @@ async function bootstrap() {
 
 
 
-  app.use((req, next) => {
+  app.use((req, res, next) => {
     console.log(`[AuthService Global Logger] ${req.method} ${req.url}`);
     next();
   });

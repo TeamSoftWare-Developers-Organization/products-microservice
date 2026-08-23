@@ -14,6 +14,9 @@ export class Order {
     @Column({ default: 'PENDING' })
     status: string;
 
+    @Column({ nullable: true })
+    userId: string;
+
     @CreateDateColumn()
     createdAt: Date;
 }

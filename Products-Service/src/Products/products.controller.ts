@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Body, Param, NotFoundException, Inject, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, NotFoundException, Inject, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { MinioService } from './minio.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -15,8 +17,22 @@ export class ProductsController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly minioService: MinioService,
   ) { }
-
+  @Post('upload')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: any, @Request() req): Promise<{ imageUrl: string }> {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only admins can upload images');
+    }
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    const imageUrl = await this.minioService.uploadFile(file);
+    return { imageUrl };
+  }
 
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -30,17 +46,18 @@ export class ProductsController {
       data.name,
       data.price,
       data.stock,
-      data.description || ''
+      data.description || '',
+      data.imageUrl
     ));
   }
 
   // تأكد من أن الاسم هنا هو 'order_created' أو أي اسم تختاره
-  @EventPattern('order_created')
-  async handleOrderCreated(@Payload() data: { orderId: number; productId: number; quantity: number }) {
-    console.log('Received order message:', data);
-    const { orderId, productId, quantity } = data;
-    await this.commandBus.execute(new UpdateStockCommand(productId, quantity, orderId));
-  }
+  // @EventPattern('order_created')
+  // async handleOrderCreated(@Payload() data: { orderId: number; productId: number; quantity: number }) {
+  //   console.log('Received order message:', data);
+  //   const { orderId, productId, quantity } = data;
+  //   await this.commandBus.execute(new UpdateStockCommand(productId, quantity, orderId));
+  // }
 
 
   @EventPattern('reduce_stock')

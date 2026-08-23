@@ -1,18 +1,23 @@
 export const getApiUrl = () => {
-    // If we're on the server (SSR), choose the correct base URL.
-    if (typeof window === 'undefined') {
-        // In Docker/K8s, INTERNAL_API_URL points to the internal service name (e.g., http://api-gateway).
-        // NGINX is configured to handle routes like /products, /auth directly (no /api prefix).
-        if (process.env.INTERNAL_API_URL) {
-            return process.env.INTERNAL_API_URL;
-        }
-
-        // In local development (npm run dev), fall back to localhost NGINX.
-        return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
     }
-
-    // On the client (browser), we also need to point to the Gateway.
-    // Since we don't have a local rewrite to /api, we use the absolute URL.
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    if (typeof window !== 'undefined') {
+        if (window.location.hostname.includes('vercel.app')) {
+            return "https://eleven-hands-win.loca.lt";
+        }
+        return `${window.location.protocol}//${window.location.hostname}:8085`;
+    }
+    return "https://eleven-hands-win.loca.lt";
 };
 
+export const getClientApiUrl = () => {
+    return getApiUrl();
+};
+
+export const getWsUrl = () => {
+    if (process.env.NEXT_PUBLIC_WS_URL) {
+        return process.env.NEXT_PUBLIC_WS_URL;
+    }
+    return getApiUrl();
+};

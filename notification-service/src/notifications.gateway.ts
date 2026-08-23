@@ -10,8 +10,11 @@ import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
     cors: {
-        origin: '*',
+        origin: ['http://localhost:3000', 'http://localhost:3005'],
+        credentials: true,
     },
+    transports: ['polling', 'websocket'],
+    path: '/socket.io/',
 })
 export class NotificationsGateway
     implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -20,6 +23,10 @@ export class NotificationsGateway
 
     sendOrderNotification(data: any) {
         this.server.emit('order_notification', data);
+    }
+
+    sendNotification(event: string, payload: any) {
+        this.server.emit(event, payload);
     }
 
     afterInit(server: Server) {

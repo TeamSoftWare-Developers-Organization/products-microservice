@@ -3,20 +3,29 @@
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useToast } from "./ui/use-toast";
+import { getWsUrl } from "../lib/config";
 
 export function NotificationListener() {
     const { toast } = useToast();
     const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
-        // Connect to the unified domain. /socket.io path is handled by Ingress.
-        const newSocket = io({
-            path: "/socket.io",
-            transports: ["websocket"],
+        const newSocket = io(getWsUrl(), {
+            path: "/socket.io/",
+            transports: ['websocket'],
+            upgrade: false,
+            autoConnect: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 5000,
+            timeout: 10000,
         });
 
         newSocket.on("connect", () => {
-            console.log("[Socket] Connected to Notifications Gateway");
+            console.log("🟢 WebSockets Connected Successfully");
+        });
+
+        newSocket.on("connect_error", (err) => {
+            console.warn("⚠️ WebSockets Server Unreachable, retrying in 5s...");
         });
 
         newSocket.on("order_notification", (data) => {
@@ -35,5 +44,5 @@ export function NotificationListener() {
         };
     }, [toast]);
 
-    return null; // This component just listens
+    return null;
 }

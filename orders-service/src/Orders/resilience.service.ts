@@ -44,12 +44,15 @@ export class ResilienceService implements OnModuleInit {
      */
     async fireAction(action: Function, actionName: string = 'default') {
         if (!this.actionBreakers.has(actionName)) {
-            this.actionBreakers.set(actionName, new CircuitBreaker(action, {
-                timeout: 5000,
-                errorThresholdPercentage: 50,
-                resetTimeout: 10000
-            }));
+            this.actionBreakers.set(actionName, new CircuitBreaker(
+                async (fn: Function) => fn(),
+                {
+                    timeout: 5000,
+                    errorThresholdPercentage: 50,
+                    resetTimeout: 10000
+                }
+            ));
         }
-        return this.actionBreakers.get(actionName).fire();
+        return this.actionBreakers.get(actionName).fire(action);
     }
 }

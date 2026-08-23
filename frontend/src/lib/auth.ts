@@ -3,12 +3,13 @@ import { jwtDecode } from "jwt-decode";
 export const setToken = (token: string) => {
     if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', token);
+        localStorage.setItem('token', token);
     }
 };
 
 export const getToken = () => {
     if (typeof window !== 'undefined') {
-        return localStorage.getItem('accessToken');
+        return localStorage.getItem('token') || localStorage.getItem('accessToken');
     }
     return null;
 };
@@ -16,6 +17,7 @@ export const getToken = () => {
 export const logout = () => {
     if (typeof window !== 'undefined') {
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('token');
         window.location.href = '/';
     }
 };
