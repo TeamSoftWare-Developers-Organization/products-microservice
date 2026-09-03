@@ -3,5 +3,6 @@ export declare class Order {
     productId: number;
     quantity: number;
     status: string;
+    userId: string;
     createdAt: Date;
 }

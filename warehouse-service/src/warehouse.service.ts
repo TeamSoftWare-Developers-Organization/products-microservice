@@ -120,12 +120,10 @@ export class WarehouseService implements OnApplicationBootstrap {
         console.log('🌱 [Warehouse Service] Seeding product inventory...');
         // بذر مخزون للمنتج رقم 9 و ps5_pro في طرابلس وبنغازي
         const items = [
-          this.inventoryRepo.create({ warehouse_id: 1, product_id: '9', stock_quantity: 100 }),
-          this.inventoryRepo.create({ warehouse_id: 1, product_id: 'ps5_pro', stock_quantity: 100 }),
-          this.inventoryRepo.create({ warehouse_id: 1, product_id: '99', stock_quantity: 100 }),
-          this.inventoryRepo.create({ warehouse_id: 2, product_id: '9', stock_quantity: 100 }),
-          this.inventoryRepo.create({ warehouse_id: 2, product_id: 'ps5_pro', stock_quantity: 100 }),
-          this.inventoryRepo.create({ warehouse_id: 2, product_id: '99', stock_quantity: 100 }),
+          this.inventoryRepo.create({ warehouse_id: 1, product_id: '1', stock_quantity: 250 }),
+          this.inventoryRepo.create({ warehouse_id: 1, product_id: '2', stock_quantity: 100 }),
+          this.inventoryRepo.create({ warehouse_id: 2, product_id: '1', stock_quantity: 250 }),
+          this.inventoryRepo.create({ warehouse_id: 2, product_id: '2', stock_quantity: 100 }),
         ];
         await this.inventoryRepo.save(items);
         console.log('🌱 [Warehouse Service] Inventory seeded successfully.');

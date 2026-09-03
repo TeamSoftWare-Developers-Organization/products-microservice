@@ -2,11 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateOrderCommand = void 0;
 class CreateOrderCommand {
-    productId;
-    quantity;
-    constructor(productId, quantity) {
+    constructor(productId, quantity, userId) {
         this.productId = productId;
         this.quantity = quantity;
+        this.userId = userId;
     }
 }
 exports.CreateOrderCommand = CreateOrderCommand;

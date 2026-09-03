@@ -9,7 +9,7 @@ async function getProducts(): Promise<Product[]> {
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL ||
       process.env.INTERNAL_API_URL ||
-      "https://eleven-hands-win.loca.lt";
+      "https://policies-strategic-rotation-extends.trycloudflare.com";
 
     const cleanBase = baseUrl.replace(/\/+$/, "");
     const url = cleanBase.endsWith("/api")

@@ -14,3 +14,5 @@ export interface Product {
     isFrozen?: boolean;
     is_active?: boolean;
 }
+
+export * from '@/interfaces/cart.interface';

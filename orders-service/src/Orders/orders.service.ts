@@ -38,8 +38,8 @@ export class OrdersService {
                 quantity,
                 userId
             });
-        } catch (error) {
-            console.error(`[Orders Service] Circuit Breaker blocked/failed emit: ${error.message}`);
+        } catch (error: any) {
+            console.error(`[Orders Service] Circuit Breaker blocked/failed emit: ${error?.message || error}`);
         }
 
         return savedOrder;
@@ -86,8 +86,8 @@ export class OrdersService {
                 quantity: order.quantity
             });
             this.notificationClient.emit('order_failed', { orderId });
-        } catch (error) {
-            console.error(`[Orders Service] Failed to emit order.failed compensating event: ${error.message}`);
+        } catch (error: any) {
+            console.error(`[Orders Service] Failed to emit order.failed compensating event: ${error?.message || error}`);
         }
     }
 

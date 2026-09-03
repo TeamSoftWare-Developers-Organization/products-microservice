@@ -34,21 +34,34 @@ export class ProductsService {
   async updateStock(productId: number, quantity: number): Promise<boolean> {
     const product = await this.productsRepository.findOne({ where: { id: productId } });
 
-    if (!product) {
-      console.error(`Product with ID ${productId} not found`);
-      return false;
-    }
-
-    if (product.stock_quantity < quantity) {
-      console.error(`Insufficient stock for product ${product.name_ar}. Current: ${product.stock_quantity}, Requested: ${quantity}`);
-      product.is_active = false; // تجميد المنتج لعدم كفاية المخزون
-      await this.productsRepository.save(product);
-      return false;
-    }
-
-    product.stock_quantity -= quantity;
-    if (product.stock_quantity === 0) {
-      product.is_active = false; // تجميد المنتج لانتهاء المخزون (نفذت الكمية)
+    switch (Boolean(product)) {
+      case false: {
+        console.error(`Product with ID ${productId} not found`);
+        return false;
+      }
+      case true: {
+        if (!product) return false;
+        switch (product.stock_quantity < quantity) {
+          case true: {
+            console.error(`Insufficient stock for product ${product.name_ar}. Current: ${product.stock_quantity}, Requested: ${quantity}`);
+            product.is_active = false; // تجميد المنتج لعدم كفاية المخزون
+            await this.productsRepository.save(product);
+            return false;
+          }
+          case false: {
+            product.stock_quantity -= quantity;
+            switch (product.stock_quantity === 0) {
+              case true:
+                product.is_active = false; // تجميد المنتج لانتهاء المخزون (نفذت الكمية)
+                break;
+              default:
+                break;
+            }
+            break;
+          }
+        }
+        break;
+      }
     }
     
     console.log(`Updating stock for ${product.name_ar}: New Stock = ${product.stock_quantity}, Active = ${product.is_active}`);

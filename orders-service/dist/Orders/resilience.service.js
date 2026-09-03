@@ -18,10 +18,9 @@ const microservices_1 = require("@nestjs/microservices");
 const rxjs_1 = require("rxjs");
 const CircuitBreaker = require('opossum');
 let ResilienceService = class ResilienceService {
-    client;
-    breaker;
     constructor(client) {
         this.client = client;
+        this.actionBreakers = new Map();
     }
     onModuleInit() {
         const options = {
@@ -45,13 +44,15 @@ let ResilienceService = class ResilienceService {
     async fire(pattern, data) {
         return this.breaker.fire({ pattern, data });
     }
-    async fireAction(action, ...args) {
-        const actionBreaker = new CircuitBreaker(action, {
-            timeout: 3000,
-            errorThresholdPercentage: 50,
-            resetTimeout: 10000
-        });
-        return actionBreaker.fire(...args);
+    async fireAction(action, actionName = 'default') {
+        if (!this.actionBreakers.has(actionName)) {
+            this.actionBreakers.set(actionName, new CircuitBreaker(async (fn) => fn(), {
+                timeout: 5000,
+                errorThresholdPercentage: 50,
+                resetTimeout: 10000
+            }));
+        }
+        return this.actionBreakers.get(actionName).fire(action);
     }
 };
 exports.ResilienceService = ResilienceService;

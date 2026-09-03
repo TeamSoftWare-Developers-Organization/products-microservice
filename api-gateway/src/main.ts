@@ -31,6 +31,12 @@ async function bootstrap() {
             console.log(`[Breaker ${serviceName}] proxyReqPathResolver called: baseUrl=${req.baseUrl}, url=${url}`);
             return `${req.baseUrl}${url}`;
           },
+          proxyReqBodyDecorator: (bodyContent: any, srcReq: any) => {
+            if (srcReq.body && typeof srcReq.body === 'object' && Object.keys(srcReq.body).length > 0) {
+              return JSON.stringify(srcReq.body);
+            }
+            return bodyContent;
+          },
           proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
             console.error(`[Breaker ${serviceName}] proxyErrorHandler caught:`, err);
             reject(err);

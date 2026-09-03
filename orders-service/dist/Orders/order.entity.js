@@ -12,11 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Order = void 0;
 const typeorm_1 = require("typeorm");
 let Order = class Order {
-    id;
-    productId;
-    quantity;
-    status;
-    createdAt;
 };
 exports.Order = Order;
 __decorate([
@@ -35,6 +30,10 @@ __decorate([
     (0, typeorm_1.Column)({ default: 'PENDING' }),
     __metadata("design:type", String)
 ], Order.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Order.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

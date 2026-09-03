@@ -14,7 +14,6 @@ const cqrs_1 = require("@nestjs/cqrs");
 const reject_order_command_1 = require("../impl/reject-order.command");
 const orders_service_1 = require("../../orders.service");
 let RejectOrderHandler = class RejectOrderHandler {
-    ordersService;
     constructor(ordersService) {
         this.ordersService = ordersService;
     }

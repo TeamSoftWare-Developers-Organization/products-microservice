@@ -14,12 +14,11 @@ const cqrs_1 = require("@nestjs/cqrs");
 const create_order_command_1 = require("../impl/create-order.command");
 const orders_service_1 = require("../../orders.service");
 let CreateOrderHandler = class CreateOrderHandler {
-    ordersService;
     constructor(ordersService) {
         this.ordersService = ordersService;
     }
     async execute(command) {
-        return this.ordersService.createOrder(command.productId, command.quantity);
+        return this.ordersService.createOrder(command.productId, command.quantity, command.userId);
     }
 };
 exports.CreateOrderHandler = CreateOrderHandler;

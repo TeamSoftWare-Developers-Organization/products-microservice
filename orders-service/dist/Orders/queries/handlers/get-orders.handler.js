@@ -14,7 +14,6 @@ const cqrs_1 = require("@nestjs/cqrs");
 const get_orders_query_1 = require("../impl/get-orders.query");
 const orders_service_1 = require("../../orders.service");
 let GetOrdersHandler = class GetOrdersHandler {
-    ordersService;
     constructor(ordersService) {
         this.ordersService = ordersService;
     }

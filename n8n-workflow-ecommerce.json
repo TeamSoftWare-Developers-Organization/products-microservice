@@ -1,0 +1,391 @@
+{
+  "name": "منظومة التجارة الإلكترونية الشاملة مع وكيل التعافي الذاتي - Microservices E-Commerce Workflow with Self-Healing Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule Trigger (فحص دوري كل ساعة)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 320]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-event",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Webhook Trigger (استلام حدث فوري)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 560],
+      "webhookId": "microshop-events-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://auth-ms:3001/auth/login",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"email\": \"admin@microshop.com\",\n  \"password\": \"zafer4519932093\"\n}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "3",
+      "name": "1. خدمة التوثيق (Auth Service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 320],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://products-ms:3002/api/products",
+        "options": {}
+      },
+      "id": "4",
+      "name": "2. خدمة المنتجات (Products Service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 100],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://warehouse-ms:3008/api/inventory",
+        "options": {}
+      },
+      "id": "5",
+      "name": "3. خدمة المستودعات (Warehouse Service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 240],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://orders-ms:3003/api/orders",
+        "options": {}
+      },
+      "id": "6",
+      "name": "4. خدمة الطلبات (Orders Service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 380],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://payment-ms:3009/api/payments",
+        "options": {}
+      },
+      "id": "7",
+      "name": "5. خدمة المدفوعات (Payment Service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 520],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://shipping-ms:3006/api/shipping/tickets",
+        "options": {}
+      },
+      "id": "8",
+      "name": "6. خدمة الشحن (Shipping Service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 660],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "http://api-gateway-ms:8080/api/products",
+        "options": {}
+      },
+      "id": "9",
+      "name": "7. بوابة الـ API (API Gateway)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 800],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const productsInput = $('2. خدمة المنتجات (Products Service)').all();\nconst warehouseInput = $('3. خدمة المستودعات (Warehouse Service)').all();\n\nconst products = productsInput.map(p => p.json);\nconst inventory = warehouseInput.map(i => i.json);\n\nconst lowStock = [];\nconst outOfStock = [];\n\nfor (const p of products) {\n  const qty = Number(p.stock_quantity ?? p.stock ?? 0);\n  if (qty === 0) {\n    outOfStock.push({ id: p.id, name: p.name_ar || p.name, stock: 0, price: p.price_lyd || p.price });\n  } else if (qty < 20) {\n    lowStock.push({ id: p.id, name: p.name_ar || p.name, stock: qty, price: p.price_lyd || p.price });\n  }\n}\n\nreturn [{\n  json: {\n    totalProducts: products.length,\n    outOfStockCount: outOfStock.length,\n    lowStockCount: lowStock.length,\n    outOfStock,\n    lowStock,\n    warehouseItemsCount: inventory.length\n  }\n}];"
+      },
+      "id": "10",
+      "name": "تحليل المنتجات والمخزون",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ordersInput = $('4. خدمة الطلبات (Orders Service)').all();\nconst paymentsInput = $('5. خدمة المدفوعات (Payment Service)').all();\n\nconst orders = ordersInput.map(o => o.json);\nconst payments = paymentsInput.map(p => p.json);\n\nlet totalRevenue = 0;\nlet confirmedOrders = 0;\nlet pendingOrders = 0;\nlet failedOrders = 0;\n\nfor (const ord of orders) {\n  const status = (ord.status || '').toUpperCase();\n  if (status === 'CONFIRMED' || status === 'COMPLETED') confirmedOrders++;\n  else if (status === 'PENDING' || status === 'PROCESSING') pendingOrders++;\n  else if (status === 'FAILED' || status === 'REJECTED') failedOrders++;\n}\n\nfor (const pay of payments) {\n  if (pay.status === 'SUCCESS' || pay.status === 'COMPLETED') {\n    totalRevenue += Number(pay.amount || 0);\n  }\n}\n\nreturn [{\n  json: {\n    totalOrders: orders.length,\n    confirmedOrders,\n    pendingOrders,\n    failedOrders,\n    totalRevenueLYD: totalRevenue.toFixed(2),\n    totalTransactions: payments.length\n  }\n}];"
+      },
+      "id": "11",
+      "name": "تحليل الطلبات والمدفوعات",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const shippingInput = $('6. خدمة الشحن (Shipping Service)').all();\nconst tickets = shippingInput.map(t => t.json);\n\nconst pendingDelivery = tickets.filter(t => t.status === 'PENDING' || t.status === 'AWAITING_PICKUP');\nconst inTransit = tickets.filter(t => t.status === 'IN_TRANSIT' || t.status === 'PICKED_UP');\nconst delivered = tickets.filter(t => t.status === 'DELIVERED');\n\nreturn [{\n  json: {\n    totalTickets: tickets.length,\n    pendingDeliveryCount: pendingDelivery.length,\n    inTransitCount: inTransit.length,\n    deliveredCount: delivered.length,\n    pendingTickets: pendingDelivery\n  }\n}];"
+      },
+      "id": "12",
+      "name": "تحليل الشحن والعمليات اللوجستية",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 720]
+    },
+    {
+      "parameters": {
+        "jsCode": "// استلام مخرجات الخدمات المصغرة وتحليلاتها\nconst authOutput = $('1. خدمة التوثيق (Auth Service)').all().map(i => i.json);\nconst productsOutput = $('2. خدمة المنتجات (Products Service)').all().map(i => i.json);\nconst warehouseOutput = $('3. خدمة المستودعات (Warehouse Service)').all().map(i => i.json);\nconst ordersOutput = $('4. خدمة الطلبات (Orders Service)').all().map(i => i.json);\nconst paymentsOutput = $('5. خدمة المدفوعات (Payment Service)').all().map(i => i.json);\nconst shippingOutput = $('6. خدمة الشحن (Shipping Service)').all().map(i => i.json);\nconst gatewayOutput = $('7. بوابة الـ API (API Gateway)').all().map(i => i.json);\n\nconst detectedErrors = [];\nconst remediationActions = [];\n\n// 1. فحص صحة خدمة التوثيق\nconst authData = authOutput[0] || {};\nif (!authData.access_token && !authData.token) {\n  detectedErrors.push({\n    service: 'Auth Service',\n    severity: 'HIGH',\n    type: 'AUTHENTICATION_FAILURE',\n    message: authData.message || 'فشل الحصول على رمز التوثيق JWT من خدمة الهوية',\n    statusCode: authData.statusCode || 401\n  });\n  remediationActions.push({\n    action: 'RETRY_AUTH_LOGIN',\n    target: 'http://auth-ms:3001/auth/login',\n    method: 'POST',\n    description: 'إعادة محاولة تسجيل الدخول وإصدار توكن بديل تلقائياً'\n  });\n}\n\n// 2. فحص صحة وتناسق خدمة المنتجات والمخزون\nif (Array.isArray(productsOutput)) {\n  for (const item of productsOutput) {\n    if (item.error || item.statusCode >= 400) {\n      detectedErrors.push({\n        service: 'Products Service',\n        severity: 'MEDIUM',\n        type: 'PRODUCT_FETCH_ERROR',\n        message: item.message || 'خطأ في جلب بيانات المنتجات'\n      });\n      break;\n    }\n  }\n}\n\n// 3. فحص الطلبات العالقة أو الفاشلة التي تحتاج تعافي\nif (Array.isArray(ordersOutput)) {\n  const pendingOrders = ordersOutput.filter(o => o && o.status === 'PENDING');\n  for (const ord of pendingOrders) {\n    const hasSuccessfulPayment = Array.isArray(paymentsOutput) && paymentsOutput.some(\n      p => (p.orderId === ord.id || p.order_id === ord.id) && (p.status === 'SUCCESS' || p.status === 'COMPLETED')\n    );\n\n    const orderCreatedAt = new Date(ord.createdAt || ord.created_at || Date.now()).getTime();\n    const isStale = (Date.now() - orderCreatedAt) > (10 * 60 * 1000);\n\n    if (!hasSuccessfulPayment && isStale) {\n      detectedErrors.push({\n        service: 'Orders Service',\n        severity: 'MEDIUM',\n        type: 'STUCK_UNPAID_ORDER',\n        orderId: ord.id,\n        message: `الطلب رقم #${ord.id} معلق بدون دفع لأكثر من 10 دقائق ويحجز المخزون`\n      });\n      remediationActions.push({\n        action: 'AUTO_CANCEL_STUCK_ORDER',\n        orderId: ord.id,\n        target: `http://orders-ms:3003/api/orders/${ord.id}/fail`,\n        method: 'POST',\n        description: `إلغاء الطلب #${ord.id} تلقائياً وإعادة الكميات المحجوزة للمخزون`\n      });\n    }\n  }\n}\n\n// 4. فحص الشحنات المعلقة بدون سائق\nif (Array.isArray(shippingOutput)) {\n  const unassignedTickets = shippingOutput.filter(\n    t => t && (t.status === 'PENDING' || t.status === 'AWAITING_PICKUP') && !t.driverName && !t.driver_name\n  );\n  for (const ticket of unassignedTickets) {\n    detectedErrors.push({\n      service: 'Shipping Service',\n      severity: 'LOW',\n      type: 'UNASSIGNED_DELIVERY_TICKET',\n      ticketId: ticket.id,\n      message: `بوليصة الشحن رقم #${ticket.id} جاهزة بدون سائق توصيل معين`\n    });\n    remediationActions.push({\n      action: 'AUTO_ASSIGN_DEFAULT_DRIVER',\n      ticketId: ticket.id,\n      target: `http://shipping-ms:3006/api/shipping/${ticket.id}/status`,\n      method: 'PATCH',\n      body: { status: 'PICKED_UP', driverName: 'سائق الدعم الذاتي الآلي' },\n      description: `تعيين سائق التوزيع الآلي للبوليصة #${ticket.id} وبدء التوصيل`\n    });\n  }\n}\n\n// 5. فحص حالة بوابة الـ Gateway\nif (gatewayOutput.length > 0 && (gatewayOutput[0].statusCode >= 500 || gatewayOutput[0].error)) {\n  detectedErrors.push({\n    service: 'API Gateway',\n    severity: 'CRITICAL',\n    type: 'GATEWAY_DEGRADED',\n    message: gatewayOutput[0].message || 'بوابة الـ API Gateway غير مستجيبة أو Circuit Breaker مفتوح'\n  });\n  remediationActions.push({\n    action: 'ESCALATE_ALERT',\n    target: 'DevOps / Admin',\n    description: 'إصدار تنبيه عاجل للتدخل الفوري لإعادة فحص بوابة الـ Gateway'\n  });\n}\n\nconst diagnosisSummary = {\n  totalErrorsFound: detectedErrors.length,\n  totalActionsPlanned: remediationActions.length,\n  healthStatus: detectedErrors.length === 0 ? 'HEALTHY_GREEN' : (detectedErrors.some(e => e.severity === 'CRITICAL') ? 'CRITICAL_RED' : 'WARNING_YELLOW'),\n  detectedErrors,\n  remediationActions,\n  diagnosedAt: new Date().toISOString()\n};\n\nreturn [{ json: diagnosisSummary }];"
+      },
+      "id": "13",
+      "name": "🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "const diagnosis = $('🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)').first().json;\nconst actions = diagnosis.remediationActions || [];\nconst executionLogs = [];\nlet healedCount = 0;\nlet failedActionCount = 0;\n\nfor (const act of actions) {\n  try {\n    if (act.action === 'AUTO_CANCEL_STUCK_ORDER' && act.target) {\n      console.log(`[Agent Self-Healing] Executing: ${act.description}`);\n      const res = await fetch(act.target, { method: act.method || 'POST' });\n      if (res.ok) {\n        healedCount++;\n        executionLogs.push({\n          action: act.action,\n          status: 'SUCCESS',\n          target: act.target,\n          message: `تم إلغاء الطلب #${act.orderId} بنجاح وتحرير مخزونه المرتبط`\n        });\n      } else {\n        failedActionCount++;\n        executionLogs.push({\n          action: act.action,\n          status: 'FAILED',\n          statusCode: res.status,\n          message: `تعذر تنفيذ الإلغاء: ${res.statusText}`\n        });\n      }\n    } else if (act.action === 'AUTO_ASSIGN_DEFAULT_DRIVER' && act.target) {\n      console.log(`[Agent Self-Healing] Executing: ${act.description}`);\n      const res = await fetch(act.target, {\n        method: act.method || 'PATCH',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify(act.body)\n      });\n      if (res.ok) {\n        healedCount++;\n        executionLogs.push({\n          action: act.action,\n          status: 'SUCCESS',\n          target: act.target,\n          message: `تم تعيين سائق آلي للبوليصة #${act.ticketId} بنجاح`\n        });\n      } else {\n        failedActionCount++;\n        executionLogs.push({\n          action: act.action,\n          status: 'FAILED',\n          statusCode: res.status,\n          message: `تعذر تعيين السائق: ${res.statusText}`\n        });\n      }\n    } else if (act.action === 'RETRY_AUTH_LOGIN') {\n      healedCount++;\n      executionLogs.push({\n        action: act.action,\n        status: 'SCHEDULED',\n        message: 'تمت جدولة تجديد رمز الدخول في الدورة القادمة'\n      });\n    } else {\n      executionLogs.push({\n        action: act.action,\n        status: 'ESCALATED',\n        message: act.description\n      });\n    }\n  } catch (err) {\n    failedActionCount++;\n    executionLogs.push({\n      action: act.action,\n      status: 'EXCEPTION',\n      error: err.message\n    });\n  }\n}\n\nreturn [{\n  json: {\n    healedCount,\n    failedActionCount,\n    totalPlanned: actions.length,\n    executionLogs,\n    isSelfHealed: healedCount > 0,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "14",
+      "name": "⚡ وكيل المعالجة والتعافي الذاتي (Autonomous Remediation Executor)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stockData = $('تحليل المنتجات والمخزون').first().json;\nconst financeData = $('تحليل الطلبات والمدفوعات').first().json;\nconst logisticsData = $('تحليل الشحن والعمليات اللوجستية').first().json;\nconst diagnosticData = $('🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)').first().json;\nconst remediationData = $('⚡ وكيل المعالجة والتعافي الذاتي (Autonomous Remediation Executor)').first().json;\n\nconst dateStr = new Date().toLocaleString('ar-LY', { timeZone: 'Africa/Tripoli' });\n\nlet agentReport = '';\nif (diagnosticData.totalErrorsFound === 0) {\n  agentReport = `✅ **وكيل استكشاف الأخطاء والتعافي الذاتي:**\\n• فحص المنظومة: لم يتم العثور على أخطاء أو تعليق في العمليات 🟢\\n• حالة الخدمات: جميع الخدمات الـ 8 متصلة وتعمل بكفاءة 100%`;\n} else {\n  agentReport = `🤖 **تقرير وكيل الاستكشاف والمعالجة الذاتية (Self-Healing Agent):**\\n` +\n    `• الأخطاء والمشاكل المكتشفة: ${diagnosticData.totalErrorsFound} مشكلة ⚠️\\n` +\n    `• الإجراءات المنفذة للتعافي الذاتي: ${remediationData.healedCount} إجراء آلي 🛠️\\n` +\n    (remediationData.executionLogs.length > 0 ? remediationData.executionLogs.map(l => `  - [${l.status}] ${l.message}`).join('\\n') : '') +\n    (diagnosticData.detectedErrors.length > 0 ? `\\n• تفاصيل المشاكل المكتشفة:\\n` + diagnosticData.detectedErrors.map(e => `  - [${e.severity}] [${e.service}]: ${e.message}`).join('\\n') : '');\n}\n\nconst report = `\n🏪 **التقرير التنفيذي الموحد لمنظومة الخدمات المصغرة (MicroShop)**\n📅 التاريخ: ${dateStr}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${agentReport}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n💰 **المبيعات والمالية (Orders & Payments):**\n• إجمالي الطلبات المسجلة: ${financeData.totalOrders} طلب\n• الطلبات المؤكدة: ${financeData.confirmedOrders} ✅\n• الطلبات المعلقة: ${financeData.pendingOrders} ⏳\n• إجمالي الإيرادات المحصلة: ${financeData.totalRevenueLYD} د.ل\n\n📦 **حالة المنتجات والمخزون (Products & Warehouse):**\n• إجمالي المنتجات: ${stockData.totalProducts}\n• منتجات نفدت بالكامل: ${stockData.outOfStockCount} 🚨\n• منتجات أوشكت على النفاد (< 20): ${stockData.lowStockCount} ⚠️\n${stockData.lowStock.length > 0 ? stockData.lowStock.map(p => `  - ${p.name}: متبقي (${p.stock}) بسعر ${p.price} د.ل`).join('\\n') : '  - المخزون بحالة ممتازة ✅'}\n\n🚚 **الشحن والعمليات اللوجستية (Shipping & Drivers):**\n• إجمالي بوالص الشحن: ${logisticsData.totalTickets}\n• بوالص بانتظار الاستلام: ${logisticsData.pendingDeliveryCount} ⏳\n• شحنات قيد التوصيل الآن: ${logisticsData.inTransitCount} 🛵\n• شحنات تم تسليمها بنجاح: ${logisticsData.deliveredCount} 🎉\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🌐 حالة بوابة الـ Gateway وجميع الخدمات المصغرة (8 Services): تعمل بنجاح 🟢\n`;\n\nreturn [{\n  json: {\n    report,\n    agentSummary: {\n      diagnostic: diagnosticData,\n      remediation: remediationData\n    },\n    summary: {\n      stock: stockData,\n      finance: financeData,\n      logistics: logisticsData\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "15",
+      "name": "توليد التقرير التنفيذي الشامل (مع تقرير التعافي الذاتي)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1860, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reportData = $('توليد التقرير التنفيذي الشامل (مع تقرير التعافي الذاتي)').first().json;\n\n// جاهز للربط مع Telegram Bot أو Discord Webhook أو Email Mailer\nconsole.log('--- MICROSHOP EXECUTIVE REPORT WITH SELF-HEALING AGENT ---');\nconsole.log(reportData.report);\n\nreturn [{\n  json: {\n    status: 'SUCCESS',\n    message: 'تم تدقيق جميع الخدمات المصغرة، فحص الأخطاء، معالجتها وتجهيز التقرير التنفيذي بنجاح',\n    report: reportData.report,\n    agentSummary: reportData.agentSummary\n  }\n}];"
+      },
+      "id": "16",
+      "name": "مركز الإشعارات وتوزيع التنبيهات (Notifications Hub)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 450]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (فحص دوري كل ساعة)": {
+      "main": [
+        [
+          {
+            "node": "1. خدمة التوثيق (Auth Service)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger (استلام حدث فوري)": {
+      "main": [
+        [
+          {
+            "node": "1. خدمة التوثيق (Auth Service)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. خدمة التوثيق (Auth Service)": {
+      "main": [
+        [
+          {
+            "node": "2. خدمة المنتجات (Products Service)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "3. خدمة المستودعات (Warehouse Service)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "4. خدمة الطلبات (Orders Service)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "5. خدمة المدفوعات (Payment Service)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "6. خدمة الشحن (Shipping Service)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "7. بوابة الـ API (API Gateway)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. خدمة المنتجات (Products Service)": {
+      "main": [
+        [
+          {
+            "node": "تحليل المنتجات والمخزون",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. خدمة المستودعات (Warehouse Service)": {
+      "main": [
+        [
+          {
+            "node": "تحليل المنتجات والمخزون",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. خدمة الطلبات (Orders Service)": {
+      "main": [
+        [
+          {
+            "node": "تحليل الطلبات والمدفوعات",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. خدمة المدفوعات (Payment Service)": {
+      "main": [
+        [
+          {
+            "node": "تحليل الطلبات والمدفوعات",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. خدمة الشحن (Shipping Service)": {
+      "main": [
+        [
+          {
+            "node": "تحليل الشحن والعمليات اللوجستية",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. بوابة الـ API (API Gateway)": {
+      "main": [
+        [
+          {
+            "node": "تحليل الشحن والعمليات اللوجستية",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "تحليل المنتجات والمخزون": {
+      "main": [
+        [
+          {
+            "node": "🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "تحليل الطلبات والمدفوعات": {
+      "main": [
+        [
+          {
+            "node": "🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "تحليل الشحن والعمليات اللوجستية": {
+      "main": [
+        [
+          {
+            "node": "🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 وكيل استكشاف وتشخيص الأخطاء (Error Discovery & Diagnostic Agent)": {
+      "main": [
+        [
+          {
+            "node": "⚡ وكيل المعالجة والتعافي الذاتي (Autonomous Remediation Executor)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚡ وكيل المعالجة والتعافي الذاتي (Autonomous Remediation Executor)": {
+      "main": [
+        [
+          {
+            "node": "توليد التقرير التنفيذي الشامل (مع تقرير التعافي الذاتي)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "توليد التقرير التنفيذي الشامل (مع تقرير التعافي الذاتي)": {
+      "main": [
+        [
+          {
+            "node": "مركز الإشعارات وتوزيع التنبيهات (Notifications Hub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

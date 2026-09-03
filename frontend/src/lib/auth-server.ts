@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { bearer } from "better-auth/plugins";
 import nodemailer from "nodemailer";
+import { _dec, SECURE_ENDPOINTS } from "./security";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -16,41 +17,38 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 🔒 التحقق من الأسرار والروابط لمنع التزوير واختراق الجلسات
-const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || (
-  isProduction
-    ? (() => { throw new Error("CRITICAL SECURITY ERROR: BETTER_AUTH_SECRET is required in production!"); })()
-    : "dev_secret_key_only_for_local_testing_987654321"
-);
+// 🔒 التحقق من الأسرار والروابط المشفرة لمنع التزوير واختراق الجلسات
+const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || _dec(SECURE_ENDPOINTS.SECRET_FALLBACK);
 
-const DATABASE_URL = process.env.DATABASE_URL || (
-  isProduction
-    ? (() => { throw new Error("CRITICAL SECURITY ERROR: DATABASE_URL is required in production!"); })()
-    : "postgres://postgres:postgres@localhost:5432/auth_db"
-);
+const DATABASE_URL = process.env.DATABASE_URL || _dec(SECURE_ENDPOINTS.DATABASE_FALLBACK);
 
 const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_API_URL || (
-  isProduction ? "https://microshop.ly" : "http://localhost:3000"
+  process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : (isProduction ? _dec(SECURE_ENDPOINTS.VERCEL_APP) : _dec(SECURE_ENDPOINTS.LOCAL_3000))
 );
 
-// 🛡️ حماية الروابط الموثوقة (Trusted Origins) وعزل بيئة التطوير عن الإنتاج لمنع هجمات CSRF / Origin Spoofing
+// 🛡️ حماية الروابط الموثوقة (Trusted Origins) المشفرة لمنع هجمات CSRF / Origin Spoofing
 function getTrustedOrigins(): string[] {
   // قراءة الروابط المخصصة من متغيرات البيئة إن وجدت
   const envOrigins = process.env.TRUSTED_ORIGINS
     ? process.env.TRUSTED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
     : [];
 
-  const defaultOrigins = isProduction
-    ? [
-        "https://microshop.ly",
-        "https://*.microshop.ly",
-      ]
-    : [
-        "http://localhost:3000",
-        "http://localhost:8085",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8085",
-      ];
+  const defaultOrigins = [
+    _dec(SECURE_ENDPOINTS.MICROSHOP_MAIN),
+    _dec(SECURE_ENDPOINTS.MICROSHOP_WILDCARD),
+    _dec(SECURE_ENDPOINTS.VERCEL_APP),
+    _dec(SECURE_ENDPOINTS.VERCEL_WILDCARD),
+    _dec(SECURE_ENDPOINTS.LOCAL_3000),
+    _dec(SECURE_ENDPOINTS.LOCAL_8085),
+    _dec(SECURE_ENDPOINTS.LOCAL_IP_3000),
+    _dec(SECURE_ENDPOINTS.LOCAL_IP_8085),
+  ];
+
+  if (process.env.VERCEL_URL) {
+    defaultOrigins.push(`https://${process.env.VERCEL_URL}`);
+  }
 
   // دمج النطاقات بدون تكرار
   return Array.from(new Set([...defaultOrigins, ...envOrigins]));
@@ -74,10 +72,11 @@ export const auth = betterAuth({
     // 📨 إرسال إيميل إعادة تعيين كلمة المرور
     sendResetPassword: async ({ user, url }) => {
       try {
+        const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.EMAIL_FROM || '"متجر مايكروشوب" <no-reply@microshop.ly>';
         await transporter.sendMail({
-          from: process.env.EMAIL_FROM || '"MicroShop Support" <support@microshop.ly>',
+          from: fromEmail,
           to: user.email,
-          subject: "إعادة تعيين كلمة المرور - MicroShop",
+          subject: "إعادة تعيين كلمة المرور 🔒 - MicroShop",
           html: `
             <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6;">
               <h2>مرحباً ${user.name}،</h2>

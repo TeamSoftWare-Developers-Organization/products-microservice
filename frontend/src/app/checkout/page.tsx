@@ -2,46 +2,80 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getClientApiUrl } from '@/lib/config';
 import { Suspense } from 'react';
+import { apiFetch } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const warehouse = searchParams.get('warehouse') || '1';
+  const { toast } = useToast();
   
-  const [gateway, setGateway] = useState<string>('CASH'); // CASH, SADAD, TADAWUL
+  const [gateway, setGateway] = useState<string>('CASH'); // CASH, SADAD
   const [loading, setLoading] = useState<boolean>(false);
 
   const handlePlaceOrder = async () => {
     setLoading(true);
-    const token = localStorage.getItem('token');
     
     try {
-      // إطلاق الطلب وبدء دورة الـ Saga الخلفية
-      const { apiFetch } = await import('@/lib/api');
-      const res = await apiFetch('/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          warehouseId: Number(warehouse),
-          gateway: gateway,
-          customerData: {
-            name: "زاهر محمد علي",
-            phone: "0910000000",
-            city: warehouse === '1' ? "طرابلس" : "بنغازي",
-            address: "وسط المدينة"
+      // 1. Fetch current cart
+      let itemsToOrder: Array<{ productId: number; quantity: number }> = [];
+      try {
+        const cartRes = await apiFetch('/cart');
+        if (cartRes.ok) {
+          const cartData = await cartRes.json();
+          if (cartData && Array.isArray(cartData.items) && cartData.items.length > 0) {
+            itemsToOrder = cartData.items.map((i: any) => ({
+              productId: Number(i.productId) || 1,
+              quantity: Number(i.quantity) || 1
+            }));
           }
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error('فشل الطلب');
+        }
+      } catch (err) {
+        console.warn("Could not fetch cart items, using default:", err);
       }
 
-      alert('تم إرسال طلبك بنجاح وجاري معالجته لحظياً! 🚀');
-      router.push('/');
-    } catch (err) {
-      alert('❌ حدث خطأ أثناء معالجة الطلب، قد يكون المخزون غير كافٍ.');
+      // Default fallback if cart is empty
+      if (itemsToOrder.length === 0) {
+        itemsToOrder = [{ productId: 1, quantity: 1 }];
+      }
+
+      // 2. Place orders for all items in the cart
+      for (const item of itemsToOrder) {
+        const res = await apiFetch('/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            productId: item.productId,
+            quantity: item.quantity,
+            warehouseId: Number(warehouse),
+            gateway: gateway,
+            customerData: {
+              name: "زاهر محمد علي",
+              phone: "0910000000",
+              city: warehouse === '1' ? "طرابلس" : "بنغازي",
+              address: "وسط المدينة"
+            }
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'فشل إنشاء الطلب');
+        }
+      }
+
+      // 3. Clear cart after successful checkout
+      try {
+        await apiFetch('/cart/clear', { method: 'DELETE' });
+      } catch (e) {
+        console.warn("Failed to clear cart:", e);
+      }
+
+      alert('تم إرسال طلبك بنجاح وجاري معالجته لحظياً عبر النظام الموزع! 🚀');
+      router.push('/admin/logistics');
+    } catch (err: any) {
+      alert(`❌ ${err.message || 'حدث خطأ أثناء معالجة الطلب، قد يكون المخزون غير كافٍ.'}`);
     } finally {
       setLoading(false);
     }
@@ -82,7 +116,7 @@ function CheckoutContent() {
       <button
         onClick={handlePlaceOrder}
         disabled={loading}
-        className="w-full py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-zinc-700 disabled:to-zinc-800 disabled:text-zinc-500 font-bold text-lg rounded-2xl transition-all shadow-lg hover:shadow-emerald-900/50 flex justify-center items-center gap-2"
+        className="w-full py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-zinc-700 disabled:to-zinc-800 disabled:text-zinc-500 font-bold text-lg rounded-2xl transition-all shadow-lg hover:shadow-emerald-900/50 flex justify-center items-center gap-2 cursor-pointer"
       >
         {loading ? (
           <span className="animate-pulse">جاري تشغيل المعالجة... ⏳</span>

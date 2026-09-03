@@ -19,8 +19,9 @@ const config_1 = require("@nestjs/config");
 const create_order_handler_1 = require("./commands/handlers/create-order.handler");
 const confirm_order_handler_1 = require("./commands/handlers/confirm-order.handler");
 const reject_order_handler_1 = require("./commands/handlers/reject-order.handler");
+const fail_order_handler_1 = require("./commands/handlers/fail-order.handler");
 const get_orders_handler_1 = require("./queries/handlers/get-orders.handler");
-exports.CommandHandlers = [create_order_handler_1.CreateOrderHandler, confirm_order_handler_1.ConfirmOrderHandler, reject_order_handler_1.RejectOrderHandler];
+exports.CommandHandlers = [create_order_handler_1.CreateOrderHandler, confirm_order_handler_1.ConfirmOrderHandler, reject_order_handler_1.RejectOrderHandler, fail_order_handler_1.FailOrderHandler];
 exports.QueryHandlers = [get_orders_handler_1.GetOrdersHandler];
 let OrdersModule = class OrdersModule {
 };
@@ -37,9 +38,54 @@ exports.OrdersModule = OrdersModule = __decorate([
                         transport: microservices_1.Transport.RMQ,
                         options: {
                             urls: [config.get('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
-                            queue: 'products_queue',
+                            queue: 'warehouse_service_queue',
                             queueOptions: {
-                                durable: false,
+                                durable: true,
+                            },
+                        },
+                    }),
+                    inject: [config_1.ConfigService],
+                },
+                {
+                    name: 'NOTIFICATION_SERVICE',
+                    imports: [config_1.ConfigModule],
+                    useFactory: (config) => ({
+                        transport: microservices_1.Transport.RMQ,
+                        options: {
+                            urls: [config.get('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
+                            queue: 'notifications_queue',
+                            queueOptions: {
+                                durable: true,
+                            },
+                        },
+                    }),
+                    inject: [config_1.ConfigService],
+                },
+                {
+                    name: 'SHIPPING_SERVICE',
+                    imports: [config_1.ConfigModule],
+                    useFactory: (config) => ({
+                        transport: microservices_1.Transport.RMQ,
+                        options: {
+                            urls: [config.get('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
+                            queue: 'shipping_service_queue',
+                            queueOptions: {
+                                durable: true,
+                            },
+                        },
+                    }),
+                    inject: [config_1.ConfigService],
+                },
+                {
+                    name: 'CART_SERVICE',
+                    imports: [config_1.ConfigModule],
+                    useFactory: (config) => ({
+                        transport: microservices_1.Transport.RMQ,
+                        options: {
+                            urls: [config.get('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
+                            queue: 'cart_service_queue',
+                            queueOptions: {
+                                durable: true,
                             },
                         },
                     }),

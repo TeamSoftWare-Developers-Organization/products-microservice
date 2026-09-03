@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RejectOrderCommand = void 0;
 class RejectOrderCommand {
-    orderId;
     constructor(orderId) {
         this.orderId = orderId;
     }

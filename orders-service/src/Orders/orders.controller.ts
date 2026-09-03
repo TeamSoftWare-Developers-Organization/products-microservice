@@ -26,20 +26,29 @@ export class OrdersController {
         let userId: string | undefined;
         try {
             const authHeader = req.headers.authorization;
-            if (authHeader) {
-                const token = authHeader.split(' ')[1];
-                if (token) {
-                    const payloadBase64 = token.split('.')[1];
-                    if (payloadBase64) {
-                        const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
-                        const user = JSON.parse(payloadJson);
-                        userId = user.sub || user.id;
-                        console.log('[Orders Controller] Extracted userId from JWT:', userId);
+            const [scheme, token] = authHeader?.split(' ') || [];
+
+            switch (scheme?.toLowerCase()) {
+                case 'bearer': {
+                    const payloadBase64 = token?.split('.')[1];
+                    switch (Boolean(payloadBase64)) {
+                        case true: {
+                            const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf8');
+                            const user = JSON.parse(payloadJson);
+                            userId = user.sub || user.id;
+                            console.log('[Orders Controller] Extracted userId from JWT:', userId);
+                            break;
+                        }
+                        default:
+                            break;
                     }
+                    break;
                 }
+                default:
+                    break;
             }
-        } catch (e) {
-            console.warn('[Orders Controller] Failed to decode JWT token:', e.message);
+        } catch (e: any) {
+            console.warn('[Orders Controller] Failed to decode JWT token:', e?.message || e);
         }
 
         return this.resilienceService.fireAction(

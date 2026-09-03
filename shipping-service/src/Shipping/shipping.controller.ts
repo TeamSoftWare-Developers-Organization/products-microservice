@@ -156,12 +156,26 @@ export class ShippingController {
     ) {
         // خريطة التوافق
         let mappedStatus = DeliveryStatus.PENDING;
-        if (body.status === 'IN_TRANSIT') mappedStatus = DeliveryStatus.PICKED_UP;
-        if (body.status === 'DELIVERED') mappedStatus = DeliveryStatus.DELIVERED;
-        if (body.status === 'RETURNED') mappedStatus = DeliveryStatus.RETURNED;
+        switch (body.status) {
+            case 'IN_TRANSIT':
+                mappedStatus = DeliveryStatus.PICKED_UP;
+                break;
+            case 'DELIVERED':
+                mappedStatus = DeliveryStatus.DELIVERED;
+                break;
+            case 'RETURNED':
+                mappedStatus = DeliveryStatus.RETURNED;
+                break;
+            default:
+                break;
+        }
 
-        if (body.driverName) {
-            await this.shippingService.assignDriver(+id, body.driverName);
+        switch (Boolean(body.driverName)) {
+            case true:
+                await this.shippingService.assignDriver(+id, body.driverName!);
+                break;
+            default:
+                break;
         }
         return this.shippingService.updateDeliveryStatus(+id, mappedStatus);
     }

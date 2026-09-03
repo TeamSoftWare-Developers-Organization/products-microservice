@@ -6,19 +6,40 @@ import { logout, isAuthenticated } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, LogIn, ShoppingCart, Shield, Home as HomeIcon, Warehouse, DollarSign, Sun, Moon } from "lucide-react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 import { toggleTheme, toggleLanguage } from "@/store/slices/uiSlice";
 import { useTranslation } from "@/lib/translations";
+import { apiFetch } from "@/lib/api";
 
 export function Header() {
     const [isAuth, setIsAuth] = useState(false);
     const pathname = usePathname();
     const dispatch = useDispatch();
     const { t, language, theme } = useTranslation();
+    const [serverCartCount, setServerCartCount] = useState<number | null>(null);
+
+    const reduxCartItems = useSelector((state: RootState) => state.cart?.items || []);
+    const localCartCount = reduxCartItems.reduce((total, item) => total + (item.quantity || 1), 0);
 
     useEffect(() => {
         setIsAuth(isAuthenticated());
-    }, []);
+        
+        // Fetch cart count from backend on load if authenticated
+        if (isAuthenticated()) {
+            apiFetch("/cart")
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (data && Array.isArray(data.items)) {
+                        const total = data.items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+                        setServerCartCount(total);
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [pathname]);
+
+    const displayCartCount = serverCartCount !== null ? serverCartCount : localCartCount;
 
     const navLinks = [
         { href: "/", label: t("navHome"), icon: HomeIcon },
@@ -82,11 +103,16 @@ export function Header() {
 
                 {/* Actions (Cart, Switchers & Auth) */}
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Cart */}
-                    <Button variant="outline" className="bg-background border-border text-foreground hover:bg-accent text-xs rounded-xl px-3 py-1.5 h-9 cursor-pointer">
-                        <ShoppingCart className="mx-1 h-3.5 w-3.5 text-emerald-500" /> 
-                        <span className="hidden sm:inline">{t("cart")}</span> (0)
-                    </Button>
+                    {/* Cart Button with dynamic counter */}
+                    <Link href="/cart">
+                        <Button variant="outline" className="bg-background border-border text-foreground hover:bg-accent text-xs rounded-xl px-3 py-1.5 h-9 cursor-pointer flex items-center gap-1.5 hover:border-emerald-500/40 transition-all">
+                            <ShoppingCart className="h-3.5 w-3.5 text-emerald-500" /> 
+                            <span className="hidden sm:inline">{t("cart")}</span>
+                            <span className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold px-1.5 py-0.2 rounded-full min-w-[20px] text-center">
+                                {displayCartCount}
+                            </span>
+                        </Button>
+                    </Link>
 
                     {/* Language Switcher */}
                     <Button

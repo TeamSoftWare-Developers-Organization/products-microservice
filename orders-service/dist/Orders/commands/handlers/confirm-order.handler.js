@@ -14,7 +14,6 @@ const cqrs_1 = require("@nestjs/cqrs");
 const confirm_order_command_1 = require("../impl/confirm-order.command");
 const orders_service_1 = require("../../orders.service");
 let ConfirmOrderHandler = class ConfirmOrderHandler {
-    ordersService;
     constructor(ordersService) {
         this.ordersService = ordersService;
     }
