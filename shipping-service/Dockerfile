@@ -1,12 +1,9 @@
-# المرحلة الأولى: البناء (Build)
+# المرحلة الأولى: تجهيز ملفات التشغيل والتبعيات
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
-COPY . .
-RUN npm run build
-# تثبيت تبعات الإنتاج لنسخها للحاوية الفارغة
 RUN npm install --omit=dev --legacy-peer-deps
+COPY dist ./dist
 
 # المرحلة الثانية: التشغيل (Production - Distroless)
 FROM gcr.io/distroless/nodejs20-debian11

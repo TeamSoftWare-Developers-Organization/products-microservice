@@ -28,11 +28,17 @@ export class CartService {
     }
 
     // Recalculate total price
-    cart.totalPrice = cart.items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    const total = cart.items.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0);
+    cart.total = total;
+    cart.totalPrice = total;
 
     // Save cart in Redis with 7 days TTL (604800 seconds)
     await this.redis.set(this.getCartKey(userId), JSON.stringify(cart), 'EX', 604800);
     return cart;
+  }
+
+  async addItem(userId: string, item: { productId: string; name_ar?: string; price: number; quantity: number }) {
+    return this.addToCart(userId, item as any);
   }
 
   // 3. Clear cart (usually after order placement)

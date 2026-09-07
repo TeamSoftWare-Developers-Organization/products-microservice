@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, UseGuards, Req, Param } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AuthGuard } from './guards/auth.guard';
 
@@ -10,17 +10,38 @@ export class CartController {
   @Get()
   async getCart(@Req() req: any) {
     // Extract userId from JWT payload
-    return await this.cartService.getCart(req.user.sub || req.user.id);
+    const userId = req.user?.sub || req.user?.id || 'guest';
+    return await this.cartService.getCart(userId);
+  }
+
+  @Get(':userId')
+  async getCartByUser(@Param('userId') userId: string) {
+    return await this.cartService.getCart(userId);
   }
 
   @Post('add')
-  async addToCart(@Req() req: any, @Body() itemDto: { productId: string; name_ar: string; price: number; quantity: number }) {
-    return await this.cartService.addToCart(req.user.sub || req.user.id, itemDto);
+  async addToCart(@Req() req: any, @Body() itemDto: { productId: string; name_ar?: string; price: number; quantity: number }) {
+    const userId = req.user?.sub || req.user?.id || 'guest';
+    return await this.cartService.addItem(userId, itemDto);
+  }
+
+  @Post(':userId/items')
+  async addItem(
+    @Param('userId') userId: string,
+    @Body() item: { productId: string; name_ar?: string; quantity: number; price: number },
+  ) {
+    return await this.cartService.addItem(userId, item);
   }
 
   @Delete('clear')
   async clearCart(@Req() req: any) {
-    await this.cartService.clearCart(req.user.sub || req.user.id);
+    const userId = req.user?.sub || req.user?.id || 'guest';
+    await this.cartService.clearCart(userId);
     return { message: 'تم تفريغ السلة بنجاح' };
+  }
+
+  @Delete(':userId')
+  async clearCartByUser(@Param('userId') userId: string) {
+    return await this.cartService.clearCart(userId);
   }
 }

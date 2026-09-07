@@ -5,7 +5,7 @@ import { ZipkinExporter } from '@opentelemetry/exporter-zipkin';
 const defaultZipkinUrl = Buffer.from('aHR0cDovL3ppcGtpbjo5NDExL2FwaS92Mi9zcGFucw==', 'base64').toString('utf8');
 
 const sdk = new NodeSDK({
-    serviceName: 'notification-service',
+    serviceName: 'shipping-service',
     traceExporter: new ZipkinExporter({
         url: process.env.ZIPKIN_URL || defaultZipkinUrl,
     }),

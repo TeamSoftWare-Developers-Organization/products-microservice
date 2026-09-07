@@ -13,14 +13,20 @@ import { CashCollection } from './Shipping/entities/cash-collection.entity.js';
             imports: [ConfigModule],
             useFactory: (configService: ConfigService) => ({
                 type: 'postgres',
-                host: configService.get<string>('DATABASE_HOST') || 'shipping-db',
-                port: 5432,
+                host: configService.get<string>('DATABASE_HOST') || (process.env.NODE_ENV === 'production' ? 'shipping-db' : 'localhost'),
+                port: Number(configService.get<number>('DATABASE_PORT')) || (process.env.NODE_ENV === 'production' ? 5432 : 5436),
                 username: configService.get<string>('DATABASE_USER') || 'postgres',
                 password: configService.get<string>('DATABASE_PASSWORD') || 'zafer4519932093',
                 database: configService.get<string>('DATABASE_NAME') || 'shipping_db',
                 entities: [Shipment, DeliveryTicket, CashCollection],
                 synchronize: true, // يُنشئ الجدول تلقائياً
                 logging: false,
+                extra: {
+                    connectionTimeoutMillis: 4000,
+                    max: 20,
+                },
+                retryAttempts: 3,
+                retryDelay: 1500,
             }),
             inject: [ConfigService],
         }),

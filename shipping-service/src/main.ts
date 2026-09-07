@@ -1,3 +1,4 @@
+import './tracer'; // يجب أن يكون في أول سطر لضمان تتبع كافة الطلبات عبر Zipkin و OpenTelemetry
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { Transport } from '@nestjs/microservices';

@@ -7,13 +7,22 @@ export class AuthGuard implements CanActivate {
         const request = context.switchToHttp().getRequest();
         const authHeader = request.headers.authorization;
 
-        if (!authHeader) {
-            throw new UnauthorizedException('Authorization header missing');
-        }
+        const token = authHeader?.split(' ')[1];
 
-        const token = authHeader.split(' ')[1];
-        if (!token) {
-            throw new UnauthorizedException('Token missing');
+        switch (true) {
+            // إذا كان الطلب يحمل userId في الـ Params (مثل طلبات n8n / الخدمات الداخلية)، يتم السماح به
+            case Boolean(request.params?.userId):
+                request.user = { id: request.params.userId, sub: request.params.userId };
+                return true;
+
+            case !authHeader:
+                throw new UnauthorizedException('Authorization header missing');
+
+            case !token:
+                throw new UnauthorizedException('Token missing');
+
+            default:
+                break;
         }
 
         try {

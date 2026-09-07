@@ -216,9 +216,11 @@ services:
       DATABASE_USER: postgres
       DATABASE_PASSWORD: zafer4519932093
       RABBITMQ_URL: amqp://rabbitmq:5672
+      ZIPKIN_URL: http://zipkin:9411/api/v2/spans
     depends_on:
       - shipping-db
       - rabbitmq
+      - zipkin
     restart: always
 
   warehouse-ms:
