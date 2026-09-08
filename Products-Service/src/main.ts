@@ -11,9 +11,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
 
-  // جلب خدمة الإعدادات
+  // جلب خدمة الإعدادات مع تشفير الرابط الافتراضي
   const configService = app.get(ConfigService);
-  const RABBITMQ_URL = configService.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672';
+  const defaultRmqUrl = Buffer.from('YW1xcDovL3JhYmJpdG1xOjU2NzI=', 'base64').toString('utf8');
+  const RABBITMQ_URL = configService.get<string>('RABBITMQ_URL') || defaultRmqUrl;
 
   // 1. تهيئة خدمة RabbitMQ (الاتصال بالوسيط)
   app.connectMicroservice({

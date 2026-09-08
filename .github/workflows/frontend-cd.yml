@@ -1,0 +1,42 @@
+name: Frontend Deployment to Vercel
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+    inputs:
+      gateway_url:
+        description: 'New Tunnel URL for API Gateway (e.g., https://xyz.loca.lt)'
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+
+      - name: Update Gateway URL Secret (Optional)
+        if: "${{ github.event.inputs.gateway_url != '' }}"
+        run: |
+          vercel env add NEXT_PUBLIC_API_URL production "${{ github.event.inputs.gateway_url }}" --token=${{ secrets.VERCEL_TOKEN }} || \
+          vercel env rm NEXT_PUBLIC_API_URL production -y --token=${{ secrets.VERCEL_TOKEN }} && \
+          vercel env add NEXT_PUBLIC_API_URL production "${{ github.event.inputs.gateway_url }}" --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+
+      - name: Deploy Project to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend

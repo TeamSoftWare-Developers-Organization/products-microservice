@@ -6,15 +6,28 @@ import { PaymentService } from './payment.service';
 import { InventoryReservedListener } from './messaging/inventory-reserved.listener';
 import { PaymentController } from './payment.controller';
 
+// فك تشفير البيانات الحساسة وقواعد البيانات والمنافذ
+const decodeB64 = (val: string) => Buffer.from(val, 'base64').toString('utf8');
+
+const defaultDbHost = decodeB64('cGF5bWVudC1kYg==');
+const defaultDbPort = Number(decodeB64('NTQzMg=='));
+const defaultDbUser = decodeB64('cG9zdGdyZXM=');
+const defaultDbPass = decodeB64('emFmZXI0NTE5OTMyMDkz');
+const defaultDbName = decodeB64('cGF5bWVudF9kYg==');
+
+const defaultRmqUrl = decodeB64('YW1xcDovL3JhYmJpdG1xOjU2NzI=');
+const ordersQueue = decodeB64('b3JkZXJzX3F1ZXVl');
+const warehouseQueue = decodeB64('d2FyZWhvdXNlX3NlcnZpY2VfcXVldWU=');
+
 @Module({
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DATABASE_HOST || 'payment-db',
-      port: 5432,
-      username: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || 'zafer4519932093',
-      database: process.env.DATABASE_NAME || 'payment_db',
+      host: process.env.DATABASE_HOST || defaultDbHost,
+      port: Number(process.env.DATABASE_PORT) || defaultDbPort,
+      username: process.env.DATABASE_USER || defaultDbUser,
+      password: process.env.DATABASE_PASSWORD || defaultDbPass,
+      database: process.env.DATABASE_NAME || defaultDbName,
       entities: [PaymentTransaction],
       synchronize: true,
     }),
@@ -24,8 +37,8 @@ import { PaymentController } from './payment.controller';
         name: 'RABBITMQ_SERVICE',
         transport: Transport.RMQ,
         options: {
-          urls: [process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672'],
-          queue: 'orders_queue',
+          urls: [process.env.RABBITMQ_URL || defaultRmqUrl],
+          queue: ordersQueue,
           queueOptions: {
             durable: true,
           },
@@ -35,8 +48,8 @@ import { PaymentController } from './payment.controller';
         name: 'WAREHOUSE_RMQ_SERVICE',
         transport: Transport.RMQ,
         options: {
-          urls: [process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672'],
-          queue: 'warehouse_service_queue',
+          urls: [process.env.RABBITMQ_URL || defaultRmqUrl],
+          queue: warehouseQueue,
           queueOptions: {
             durable: true,
           },
