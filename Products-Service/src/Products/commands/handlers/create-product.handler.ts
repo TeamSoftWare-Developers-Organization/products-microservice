@@ -13,7 +13,7 @@ export class CreateProductHandler implements ICommandHandler<CreateProductComman
             stock_quantity: command.stock_quantity,
             description_ar: command.description_ar,
             main_image_url: command.main_image_url,
-            is_active: true,
+            is_active: command.is_active,
         });
     }
 }

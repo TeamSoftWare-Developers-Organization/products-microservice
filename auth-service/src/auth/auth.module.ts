@@ -17,8 +17,8 @@ export const CommandHandlers = [LoginHandler, RegisterHandler];
             imports: [ConfigModule],
             inject: [ConfigService],
             useFactory: async (configService: ConfigService) => ({
-                secret: configService.get<string>('JWT_SECRET') || 'super_secret_key_123',
-                signOptions: { expiresIn: '5m' },
+                secret: configService.getOrThrow<string>('JWT_SECRET'),
+                signOptions: { expiresIn: '8h' },
             }),
         }),
         CqrsModule,

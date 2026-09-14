@@ -28,10 +28,10 @@ export default function DriverPanel({ ticket, onUpdate }: { ticket: Ticket, onUp
   };
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-emerald-500/30 transition-all group">
+    <div className="bg-card/80 border border-border rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-emerald-500/30 transition-all group">
       <div className="flex-1 space-y-1">
-        <h3 className="font-bold text-lg text-zinc-100">طلب <span className="text-emerald-400">#{ticket.orderId}</span></h3>
-        <p className="text-sm text-zinc-400">📍 العنوان: <span className="text-zinc-300">{ticket.shippingAddress}</span></p>
+        <h3 className="font-bold text-lg text-foreground">طلب <span className="text-emerald-400">#{ticket.orderId}</span></h3>
+        <p className="text-sm text-muted-foreground">📍 العنوان: <span className="text-foreground">{ticket.shippingAddress}</span></p>
         {ticket.codAmount && (
           <p className="text-sm font-semibold text-emerald-500">💵 المطلوب تحصيله: {ticket.codAmount} LYD</p>
         )}

@@ -17,7 +17,8 @@ export class AuthGuard implements CanActivate {
         }
 
         try {
-            const secret = process.env.JWT_SECRET || 'super_secret_key_123';
+            const secret = process.env.JWT_SECRET;
+            if (!secret) throw new UnauthorizedException('JWT secret is not configured');
             const decoded = jwt.verify(token, secret);
             request.user = decoded;
             return true;

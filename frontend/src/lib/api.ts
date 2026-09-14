@@ -5,7 +5,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const baseUrl = getApiUrl().replace(/\/+$/, '');
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const fullPath = cleanEndpoint.startsWith('/api') ? cleanEndpoint : `/api${cleanEndpoint}`;
-    const fullUrl = `${baseUrl}${fullPath}`;
+    const fullUrl = baseUrl ? `${baseUrl}${fullPath}` : fullPath;
 
     const headers = new Headers(options.headers || {});
     headers.set('Bypass-Tunnel-Reminder', 'true');
@@ -14,12 +14,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     }
 
     const token = getToken();
-    if (token && !headers.has('Authorization')) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
+    if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
 
-    return fetch(fullUrl, {
-        ...options,
-        headers,
-    });
+    return fetch(fullUrl, { ...options, headers, credentials: 'same-origin' });
 };

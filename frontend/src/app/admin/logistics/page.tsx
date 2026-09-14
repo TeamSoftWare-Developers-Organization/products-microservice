@@ -38,26 +38,26 @@ export default function LogisticsPage() {
   });
 
   return (
-    <div className="p-8 bg-zinc-950 text-white min-h-screen pt-24">
+    <div className="admin-theme p-8 bg-background text-foreground min-h-screen pt-6">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
           🚚 لوحة عمليات الشحن والمناديب
         </h1>
 
-        <div className="bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-zinc-800/60 p-6 shadow-xl">
+        <div className="bg-card/80 backdrop-blur-md rounded-2xl border border-border p-6 shadow-xl">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-zinc-200">الشحنات النشطة</h2>
-            <button onClick={fetchTickets} className="text-sm px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">
+            <h2 className="text-xl font-semibold text-foreground">الشحنات النشطة</h2>
+            <button onClick={fetchTickets} className="text-sm px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg transition-colors">
               🔄 تحديث
             </button>
           </div>
 
           {loading ? (
-            <div className="text-center py-12 text-zinc-500 animate-pulse">
+            <div className="text-center py-12 text-muted-foreground animate-pulse">
               جاري جلب بيانات الشحنات... ⏳
             </div>
           ) : tickets.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500 bg-zinc-900/50 rounded-xl border border-zinc-800 border-dashed">
+            <div className="text-center py-12 text-muted-foreground bg-card/80 rounded-xl border border-zinc-800 border-dashed">
               لا توجد شحنات حالياً.
             </div>
           ) : (

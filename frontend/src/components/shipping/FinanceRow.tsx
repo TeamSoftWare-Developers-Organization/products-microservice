@@ -32,29 +32,29 @@ export default function FinanceRow({ record, onUpdate }: { record: CODRecord, on
   };
 
   return (
-    <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 flex flex-col md:flex-row justify-between items-center hover:bg-zinc-800/40 hover:border-blue-500/30 transition-all group">
+    <div className="bg-card/80 border border-border rounded-xl p-4 flex flex-col md:flex-row justify-between items-center hover:bg-muted/70 hover:border-blue-500/30 transition-all group">
       <div className="flex flex-col md:flex-row md:items-center gap-6 w-full md:w-auto">
-        <div className="text-zinc-300">
-          <span className="text-xs text-zinc-500 block uppercase tracking-wider mb-1">رقم الطلب</span>
-          <span className="font-mono text-lg text-zinc-200">#{record.orderId}</span>
+        <div className="text-foreground">
+          <span className="text-xs text-muted-foreground block uppercase tracking-wider mb-1">رقم الطلب</span>
+          <span className="font-mono text-lg text-foreground">#{record.orderId}</span>
         </div>
         <div className="text-emerald-400 font-bold">
-          <span className="text-xs text-zinc-500 block uppercase tracking-wider mb-1">المطلوب (LYD)</span>
+          <span className="text-xs text-muted-foreground block uppercase tracking-wider mb-1">المطلوب (LYD)</span>
           <span className="text-xl">{record.codAmount}</span>
         </div>
         {record.codStatus !== 'SETTLED' && (
           <div>
-            <span className="text-xs text-zinc-500 block uppercase tracking-wider mb-1">المستلم الفعلي</span>
+            <span className="text-xs text-muted-foreground block uppercase tracking-wider mb-1">المستلم الفعلي</span>
             <input 
               type="number" 
               value={amountReceived}
               onChange={(e) => setAmountReceived(Number(e.target.value))}
-              className="w-24 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-white"
+              className="w-24 px-2 py-1 bg-background border border-border rounded text-foreground"
             />
           </div>
         )}
         <div>
-          <span className="text-xs text-zinc-500 block uppercase tracking-wider mb-1">الحالة المالية</span>
+          <span className="text-xs text-muted-foreground block uppercase tracking-wider mb-1">الحالة المالية</span>
           <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${
             record.codStatus === 'SETTLED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'
           }`}>

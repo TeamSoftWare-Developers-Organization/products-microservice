@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/types";
 import { getToken } from "@/lib/auth";
-import { getClientApiUrl } from "@/lib/config";
+import { resolveProductImage } from "@/lib/image";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import { useTranslation } from "@/lib/translations";
@@ -134,6 +134,7 @@ export function EditProductModal({ product }: EditProductModalProps) {
                     stock: parseInt(formData.stock),
                     imageUrl: formData.imageUrl,
                     isFrozen: formData.isFrozen,
+                    is_active: !formData.isFrozen,
                 }),
             });
 
@@ -158,6 +159,7 @@ export function EditProductModal({ product }: EditProductModalProps) {
                 variant: "success",
             });
             setOpen(false);
+            window.dispatchEvent(new Event('products:changed'));
             router.refresh();
         } catch (error: any) {
             toast({
@@ -171,11 +173,7 @@ export function EditProductModal({ product }: EditProductModalProps) {
     };
 
     // Resolve URL for display
-    const displayImageUrl = formData.imageUrl
-        ? formData.imageUrl.startsWith("/")
-            ? `${getClientApiUrl()}${formData.imageUrl}`
-            : formData.imageUrl
-        : "";
+    const displayImageUrl = resolveProductImage(formData.imageUrl);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>

@@ -9,24 +9,18 @@ export class AuthGuard implements CanActivate {
 
         const token = authHeader?.split(' ')[1];
 
-        switch (true) {
-            // إذا كان الطلب يحمل userId في الـ Params (مثل طلبات n8n / الخدمات الداخلية)، يتم السماح به
-            case Boolean(request.params?.userId):
-                request.user = { id: request.params.userId, sub: request.params.userId };
-                return true;
-
-            case !authHeader:
-                throw new UnauthorizedException('Authorization header missing');
-
-            case !token:
-                throw new UnauthorizedException('Token missing');
-
-            default:
-                break;
+        if (!authHeader) {
+            throw new UnauthorizedException('Authorization header missing');
+        }
+        if (!token) {
+            throw new UnauthorizedException('Token missing');
         }
 
         try {
-            const secret = process.env.JWT_SECRET || 'super_secret_key_123';
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                throw new UnauthorizedException('JWT secret is not configured');
+            }
             const decoded = jwt.verify(token, secret);
             request.user = decoded;
             return true;

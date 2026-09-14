@@ -1,169 +1,101 @@
-"use client";
+'use client';
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ShoppingCart, ShoppingBag } from "lucide-react";
-import { Product } from "@/types";
-import { isAuthenticated, getUserRole } from "@/lib/auth";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { getClientApiUrl } from "@/lib/config";
-import { apiFetch } from "@/lib/api";
-import { useToast } from "@/components/ui/use-toast";
-import { EditProductModal } from "./EditProductModal";
-import { useTranslation } from "@/lib/translations";
-import { useDispatch } from "react-redux";
-import { addToCart } from "@/store/cartSlice";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { ImageOff, Package, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Product } from '@/types';
+import { isAuthenticated, getUserRole } from '@/lib/auth';
+import { resolveProductImage } from '@/lib/image';
+import { apiFetch } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
+import { EditProductModal } from './EditProductModal';
+import { addToCart } from '@/store/cartSlice';
+import { notifyCartChanged } from '@/lib/cart-events';
 
-interface ProductCardProps {
-    product: Product;
-}
+export function ProductCard({ product }: { product: Product }) {
+  const router = useRouter();
+  const dispatch = useDispatch();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
-export function ProductCard({ product }: ProductCardProps) {
-    const router = useRouter();
-    const dispatch = useDispatch();
-    const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
-    const [addingToCart, setAddingToCart] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(false);
-    const { t } = useTranslation();
+  useEffect(() => setIsAdmin(getUserRole() === 'admin'), []);
 
-    useEffect(() => {
-        setIsAdmin(getUserRole() === 'admin');
-    }, []);
+  const name = product.name_ar || product.name || 'منتج';
+  const description = product.description_ar || product.description || 'بدون وصف';
+  const price = Number(product.price_lyd ?? product.price ?? 0);
+  const stock = Number(product.stock_quantity ?? product.stock ?? 0);
+  const active = product.is_active !== false;
+  const rawImage = product.main_image_url || product.imageUrl || '';
+  const imageUrl = resolveProductImage(rawImage);
 
-    const displayName = product.name_ar || product.name || "منتج";
-    const displayDescription = product.description_ar || product.description || "";
-    const displayPrice = Number(product.price_lyd ?? product.price ?? 0);
-    const displayStock = Number(product.stock_quantity ?? product.stock ?? 0);
-    const rawImage = product.main_image_url || product.imageUrl || "";
+  const handleAddToCart = async () => {
+    if (!isAuthenticated()) return router.push('/auth/login');
+    setAddingToCart(true);
+    try {
+      const res = await apiFetch('/cart/items', {
+        method: 'POST',
+        body: JSON.stringify({ productId: String(product.id), name_ar: name, price, quantity: 1, imageUrl }),
+      });
+      if (res.status === 401) return router.push('/auth/login');
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'تعذر إضافة المنتج للسلة');
+      dispatch(addToCart(product));
+      notifyCartChanged({ delta: 1 });
+      toast({ title: 'تمت الإضافة إلى السلة', description: `${name} أصبح في سلة مشترياتك.`, variant: 'success' });
+    } catch (error: any) {
+      toast({ title: 'تعذر إضافة المنتج', description: error.message || 'حاول مرة أخرى.', variant: 'destructive' });
+    } finally { setAddingToCart(false); }
+  };
 
-    const handleAddToCart = async () => {
-        if (!isAuthenticated()) {
-            router.push("/auth/login");
-            return;
-        }
+  const buyNow = async () => {
+    setLoading(true);
+    await handleAddToCart();
+    setLoading(false);
+    router.push('/cart');
+  };
 
-        setAddingToCart(true);
-        try {
-            // Update Redux state immediately for snappy UI
-            dispatch(addToCart(product));
+  return (
+    <Card className="product-card overflow-hidden border-border/70 bg-card/70 backdrop-blur-xl flex flex-col">
+      <div className="relative aspect-[4/3] overflow-hidden bg-secondary/40">
+        {imageUrl && !imageFailed ? (
+          <img src={imageUrl} alt={name} onError={() => setImageFailed(true)} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2 bg-[radial-gradient(circle_at_center,rgba(16,185,129,.12),transparent_60%)]">
+            {imageFailed ? <ImageOff className="w-10 h-10 opacity-50" /> : <Package className="w-10 h-10 opacity-50" />}
+            <span className="text-xs">لا توجد صورة</span>
+          </div>
+        )}
+        <span className={`absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-full border backdrop-blur ${stock > 5 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : stock > 0 ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : 'bg-rose-500/15 text-rose-400 border-rose-500/20'}`}>
+          {!active ? 'غير منشور' : stock > 0 ? `${stock} متوفر` : 'نفد المخزون'}
+        </span>
+      </div>
 
-            // Sync with backend Cart microservice
-            const res = await apiFetch("/cart/add", {
-                method: "POST",
-                body: JSON.stringify({
-                    productId: String(product.id),
-                    name_ar: displayName,
-                    price: displayPrice,
-                    quantity: 1
-                })
-            });
-
-            if (res.status === 401) {
-                router.push("/auth/login");
-                return;
-            }
-
-            toast({
-                title: "تمت الإضافة إلى السلة 🛒",
-                description: `تم إضافة ${displayName} إلى سلة المشتريات.`,
-                variant: "success",
-            });
-        } catch (error: any) {
-            console.error("Cart error:", error);
-            toast({
-                title: "تنبيه",
-                description: "تمت إضافة المنتج محلياً إلى السلة.",
-                variant: "default",
-            });
-        } finally {
-            setAddingToCart(false);
-        }
-    };
-
-    const handleBuyNow = async () => {
-        if (!isAuthenticated()) {
-            router.push("/auth/login");
-            return;
-        }
-
-        setLoading(true);
-        try {
-            await handleAddToCart();
-            router.push("/cart");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Resolve URL for display
-    const displayImageUrl = rawImage
-        ? rawImage.startsWith("/")
-            ? `${getClientApiUrl()}${rawImage}`
-            : rawImage
-        : "";
-
-    return (
-        <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border border-border/50 bg-card/60 backdrop-blur-sm flex flex-col justify-between">
-            <div>
-                {displayImageUrl ? (
-                    <div className="relative w-full h-48 overflow-hidden group">
-                        <img 
-                            src={displayImageUrl} 
-                            alt={displayName} 
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                    </div>
-                ) : (
-                    <div className="w-full h-48 bg-linear-to-br from-primary/10 to-secondary/30 flex items-center justify-center border-b border-border/30">
-                        <ShoppingCart className="w-12 h-12 text-muted-foreground/40" />
-                    </div>
-                )}
-                <CardHeader>
-                    <CardTitle className="flex justify-between items-start">
-                        <span>{displayName}</span>
-                        <span className="text-xl font-bold text-primary">{displayPrice.toLocaleString()} LYD</span>
-                    </CardTitle>
-                    <CardDescription>{displayDescription}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{t("stock")}: <span className={displayStock > 0 ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
-                            {displayStock > 0 ? displayStock : t("outOfStock")}
-                        </span></span>
-                    </div>
-                </CardContent>
-            </div>
-
-            <CardFooter className="flex flex-col gap-2 pt-2">
-                <div className="flex gap-2 w-full">
-                    {/* Add to Cart button */}
-                    <Button
-                        variant="outline"
-                        className="flex-1 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 font-bold text-xs"
-                        disabled={displayStock <= 0 || addingToCart}
-                        onClick={handleAddToCart}
-                    >
-                        <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
-                        {addingToCart ? "جاري الإضافة..." : "أضف للسلة"}
-                    </Button>
-
-                    {/* Buy Now button */}
-                    <Button
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20"
-                        disabled={displayStock <= 0 || loading}
-                        onClick={handleBuyNow}
-                    >
-                        <ShoppingBag className="mr-1.5 h-3.5 w-3.5" />
-                        {loading ? t("processing") : t("buyNow")}
-                    </Button>
-                </div>
-
-                <div className={`w-full transition-all duration-300 transform ${isAdmin ? "opacity-100 scale-100 visible" : "opacity-0 scale-90 invisible h-0 overflow-hidden"}`}>
-                    <EditProductModal product={product} />
-                </div>
-            </CardFooter>
-        </Card>
-    );
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg leading-tight line-clamp-1">{name}</CardTitle>
+        <CardDescription className="line-clamp-2 min-h-10">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0 flex-1">
+        <div className="flex items-end justify-between gap-3">
+          <div><p className="text-xs text-muted-foreground">السعر</p><p className="text-2xl font-black text-emerald-500">{price.toLocaleString('ar-LY', { maximumFractionDigits: 3 })} <span className="text-xs font-semibold">د.ل</span></p></div>
+          <div className="text-xs text-muted-foreground">#{product.id}</div>
+        </div>
+      </CardContent>
+      <CardFooter className="flex flex-col gap-2 pt-0">
+        <div className="grid grid-cols-2 gap-2 w-full">
+          <Button variant="outline" onClick={handleAddToCart} disabled={!active || stock <= 0 || addingToCart} className="border-emerald-500/30 hover:bg-emerald-500/10">
+            <ShoppingCart className="h-4 w-4 ml-1.5" />{addingToCart ? 'جاري...' : 'أضف للسلة'}
+          </Button>
+          <Button onClick={buyNow} disabled={!active || stock <= 0 || loading} className="bg-emerald-600 hover:bg-emerald-500 text-white">
+            <ShoppingBag className="h-4 w-4 ml-1.5" />{loading ? 'جاري...' : 'اشتر الآن'}
+          </Button>
+        </div>
+        {isAdmin && <div className="w-full"><EditProductModal product={product} /></div>}
+      </CardFooter>
+    </Card>
+  );
 }

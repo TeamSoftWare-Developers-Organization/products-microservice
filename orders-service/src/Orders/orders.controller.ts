@@ -51,8 +51,17 @@ export class OrdersController {
             console.warn('[Orders Controller] Failed to decode JWT token:', e?.message || e);
         }
 
+        const payload = data as any;
         return this.resilienceService.fireAction(
-            () => this.commandBus.execute(new CreateOrderCommand(data.productId, data.quantity, userId)),
+            () => this.commandBus.execute(new CreateOrderCommand(
+                Number(payload.productId),
+                Number(payload.quantity),
+                userId,
+                Number(payload.warehouseId || 1),
+                String(payload.gateway || 'CASH'),
+                payload.customerData || undefined,
+                Number(payload.unitPrice || 0),
+            )),
             'createOrder'
         );
     }

@@ -96,6 +96,24 @@ async function bootstrap() {
   const cartProxy = createServiceProxy('http://cart-ms:3007', 'Cart Service');
   const paymentProxy = createServiceProxy('http://payment-ms:3009', 'Payment Service');
 
+  // Multipart uploads must remain a raw stream. express-http-proxy's normal
+  // request body handling can otherwise truncate multipart boundaries.
+  const productsUploadProxy = proxy('http://products-ms:3002', {
+    parseReqBody: false,
+    proxyReqPathResolver: () => '/api/products/upload',
+    proxyReqOptDecorator: (proxyReqOpts: any, srcReq: any) => {
+      if (srcReq.headers.authorization) {
+        proxyReqOpts.headers = proxyReqOpts.headers || {};
+        proxyReqOpts.headers.authorization = srcReq.headers.authorization;
+      }
+      return proxyReqOpts;
+    },
+  });
+
+  app.use('/api/products/upload', (req: Request, res: Response, next: NextFunction) => {
+    productsUploadProxy(req, res, next);
+  });
+
   // بوابة المنتجات
   app.use('/api/products', (req: Request, res: Response, next: NextFunction) => {
     productsProxy(req, res, next);
@@ -135,6 +153,14 @@ async function bootstrap() {
     if (!response.ok && response.status >= 500) throw new Error(`Auth Service Error: ${response.status}`);
     return response;
   }, { timeout: 5000 });
+
+  // بوابة إدارة المستخدمين (Admin)
+  const usersProxy = createServiceProxy('http://auth-ms:3001', 'Auth Users Service');
+  app.use('/api/users', (req: Request, res: Response, next: NextFunction) => {
+    authMiddleware.use(req, res, () => {
+      usersProxy(req, res, next);
+    });
+  });
 
   app.use('/api/auth', async (req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'OPTIONS') return next();

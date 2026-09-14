@@ -12,7 +12,8 @@ const getInitialTheme = (): 'dark' | 'light' => {
       return savedTheme;
     }
   }
-  return 'dark'; // Default to dark theme as originally configured
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
+  return 'dark';
 };
 
 const getInitialLanguage = (): 'ar' | 'en' => {

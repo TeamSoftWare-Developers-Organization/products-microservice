@@ -21,7 +21,7 @@ spec:
             - name: POSTGRES_USER
               value: "postgres"
             - name: POSTGRES_PASSWORD
-              value: "zafer4519932093"
+              value: "CHANGE_ME_POSTGRES_PASSWORD"
             - name: POSTGRES_DB
               value: "payment_db"
           volumeMounts:

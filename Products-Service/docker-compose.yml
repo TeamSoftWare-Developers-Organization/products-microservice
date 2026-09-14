@@ -8,7 +8,7 @@ services:
       - app-network
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: products_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -29,7 +29,7 @@ services:
       - app-network
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: orders_db
     volumes:
       - orders_data:/var/lib/postgresql/data
@@ -84,10 +84,10 @@ services:
       DATABASE_HOST: products-db
       DATABASE_NAME: products_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       RABBITMQ_URL: amqp://rabbitmq:5672
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: super_secret_key_123
+      JWT_SECRET: CHANGE_ME_JWT_SECRET
 
   # 3.1 خدمة الطلبات
   orders-service:
@@ -108,7 +108,7 @@ services:
       DATABASE_HOST: orders-db
       DATABASE_NAME: orders_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       RABBITMQ_URL: amqp://rabbitmq:5672
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
 
@@ -127,7 +127,7 @@ services:
       - auth-service
     environment:
       NODE_ENV: production
-      JWT_SECRET: super_secret_key_123
+      JWT_SECRET: CHANGE_ME_JWT_SECRET
 
   # 4. بوابة الخدمات (NGINX API Gateway)
   api-gateway:
@@ -161,7 +161,7 @@ services:
       - app-network
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: auth_db
     volumes:
       - auth_data:/var/lib/postgresql/data
@@ -190,9 +190,9 @@ services:
       DATABASE_HOST: auth-db
       DATABASE_NAME: auth_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       RABBITMQ_URL: amqp://rabbitmq:5672
-      JWT_SECRET: super_secret_key_123
+      JWT_SECRET: CHANGE_ME_JWT_SECRET
 
   # 3.3 خدمة الإشعارات
   notification-service:
@@ -220,7 +220,7 @@ services:
       - app-network
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: shipping_db
     volumes:
       - shipping_data:/var/lib/postgresql/data
@@ -251,7 +251,7 @@ services:
       DATABASE_HOST: shipping-db
       DATABASE_NAME: shipping_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       RABBITMQ_URL: amqp://rabbitmq:5672
 
   # 5. MinIO Object Storage
@@ -312,7 +312,7 @@ services:
       PORT: 3007
       REDIS_HOST: cart-redis
       RABBITMQ_URL: amqp://rabbitmq:5672
-      JWT_SECRET: super_secret_key_123
+      JWT_SECRET: CHANGE_ME_JWT_SECRET
 
   # 8. PostgreSQL for Warehouse Service
   warehouse-db:
@@ -325,7 +325,7 @@ services:
       - "5437:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: warehouse_db
     volumes:
       - warehouse_data:/var/lib/postgresql/data
@@ -357,7 +357,7 @@ services:
       DATABASE_HOST: warehouse-db
       DATABASE_NAME: warehouse_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       RABBITMQ_URL: amqp://rabbitmq:5672
 
   # 10. Payment Database
@@ -371,7 +371,7 @@ services:
       - "5438:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: payment_db
     volumes:
       - payment_data:/var/lib/postgresql/data
@@ -403,7 +403,7 @@ services:
       DATABASE_HOST: payment-db
       DATABASE_NAME: payment_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       RABBITMQ_URL: amqp://rabbitmq:5672
 
 

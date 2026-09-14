@@ -1,15 +1,19 @@
 services:
-  # --- Databases ---
   auth-db:
     image: postgres:16-alpine
     container_name: auth-db
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
-    ports:
-      - "5432:5432"
-    restart: always
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5432:5432"]
+    volumes: ["auth_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
   products-db:
     image: postgres:16-alpine
@@ -17,10 +21,15 @@ services:
     environment:
       POSTGRES_DB: products_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
-    ports:
-      - "5433:5432"
-    restart: always
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5433:5432"]
+    volumes: ["products_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d products_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
   orders-db:
     image: postgres:16-alpine
@@ -28,10 +37,15 @@ services:
     environment:
       POSTGRES_DB: orders_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
-    ports:
-      - "5434:5432"
-    restart: always
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5434:5432"]
+    volumes: ["orders_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orders_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
   payment-db:
     image: postgres:16-alpine
@@ -39,10 +53,15 @@ services:
     environment:
       POSTGRES_DB: payment_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
-    ports:
-      - "5435:5432"
-    restart: always
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5435:5432"]
+    volumes: ["payment_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
   shipping-db:
     image: postgres:16-alpine
@@ -50,10 +69,15 @@ services:
     environment:
       POSTGRES_DB: shipping_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
-    ports:
-      - "5436:5432"
-    restart: always
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5436:5432"]
+    volumes: ["shipping_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shipping_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
   warehouse-db:
     image: postgres:16-alpine
@@ -61,212 +85,208 @@ services:
     environment:
       POSTGRES_DB: warehouse_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: zafer4519932093
-    ports:
-      - "5437:5432"
-    restart: always
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5437:5432"]
+    volumes: ["warehouse_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d warehouse_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
-  # --- Infrastructure Services ---
+  cart-redis:
+    image: redis:7-alpine
+    container_name: cart-redis
+    ports: ["6379:6379"]
+    volumes: ["cart_redis_data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    restart: always
+    ports: ["5672:5672", "15672:15672"]
+    volumes: ["rabbitmq_data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 8s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
 
   minio:
     image: quay.io/minio/minio:latest
     container_name: minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    restart: always
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["minio_data:/data"]
+    restart: unless-stopped
 
   zipkin:
     image: openzipkin/zipkin:latest
     container_name: zipkin
-    ports:
-      - "9411:9411"
-    restart: always
+    ports: ["9411:9411"]
+    restart: unless-stopped
 
-  # --- Microservices ---
   auth-ms:
-    build:
-      context: ./auth-service
-      dockerfile: Dockerfile
+    build: { context: ./auth-service, dockerfile: Dockerfile }
     container_name: auth-ms
-    ports:
-      - "3001:3001"
+    ports: ["3001:3001"]
     environment:
       NODE_ENV: production
       DATABASE_HOST: auth-db
       DATABASE_NAME: auth_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       RABBITMQ_URL: amqp://rabbitmq:5672
-      JWT_SECRET: super_secret_key_123
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:
-      - auth-db
-      - rabbitmq
-    restart: always
+      auth-db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
 
   products-ms:
-    build:
-      context: ./Products-Service
-      dockerfile: Dockerfile
+    build: { context: ./Products-Service, dockerfile: Dockerfile }
     container_name: products-ms
-    ports:
-      - "3002:3002"
+    ports: ["3002:3002"]
     environment:
       NODE_ENV: production
       DATABASE_HOST: products-db
       DATABASE_NAME: products_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       RABBITMQ_URL: amqp://rabbitmq:5672
+      JWT_SECRET: ${JWT_SECRET}
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
-      MINIO_ENDPOINT: ${S3_ENDPOINT:-minio}
-      MINIO_PORT: ${S3_PORT:-9000}
-      MINIO_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_PORT: ${S3_PORT:-9000}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-products}
-      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
-      S3_REGION: ${S3_REGION:-auto}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-/uploads}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_USE_SSL: ${S3_USE_SSL:-false}
+      STORAGE_PUBLIC_READ: ${STORAGE_PUBLIC_READ:-true}
     depends_on:
-      - products-db
-      - rabbitmq
-      - zipkin
-      - minio
-    restart: always
+      products-db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      minio: { condition: service_started }
+    restart: unless-stopped
 
   cart-ms:
-    build:
-      context: ./cart-service
-      dockerfile: Dockerfile
+    build: { context: ./cart-service, dockerfile: Dockerfile }
     container_name: cart-ms
-    ports:
-      - "3007:3007"
+    ports: ["3007:3007"]
     environment:
       NODE_ENV: production
       RABBITMQ_URL: amqp://rabbitmq:5672
+      REDIS_HOST: cart-redis
+      JWT_SECRET: ${JWT_SECRET}
       PORT: 3007
     depends_on:
-      - rabbitmq
-    restart: always
+      rabbitmq: { condition: service_healthy }
+      cart-redis: { condition: service_healthy }
+    restart: unless-stopped
 
   orders-ms:
-    build:
-      context: ./orders-service
-      dockerfile: Dockerfile
+    build: { context: ./orders-service, dockerfile: Dockerfile }
     container_name: orders-ms
-    ports:
-      - "3003:3003"
+    ports: ["3003:3003"]
     environment:
       NODE_ENV: production
       DATABASE_HOST: orders-db
       DATABASE_NAME: orders_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       RABBITMQ_URL: amqp://rabbitmq:5672
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
     depends_on:
-      - orders-db
-      - rabbitmq
-      - zipkin
-    restart: always
+      orders-db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
 
   payment-ms:
-    build:
-      context: ./payment-service
-      dockerfile: Dockerfile
+    build: { context: ./payment-service, dockerfile: Dockerfile }
     container_name: payment-ms
-    ports:
-      - "3009:3009"
+    ports: ["3009:3009"]
     environment:
       NODE_ENV: production
       DATABASE_HOST: payment-db
       DATABASE_NAME: payment_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       RABBITMQ_URL: amqp://rabbitmq:5672
     depends_on:
-      - payment-db
-      - rabbitmq
-    restart: always
+      payment-db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
 
   shipping-ms:
-    build:
-      context: ./shipping-service
-      dockerfile: Dockerfile
+    build: { context: ./shipping-service, dockerfile: Dockerfile }
     container_name: shipping-ms
-    ports:
-      - "3006:3006"
+    ports: ["3006:3006"]
     environment:
       NODE_ENV: production
       DATABASE_HOST: shipping-db
       DATABASE_NAME: shipping_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       RABBITMQ_URL: amqp://rabbitmq:5672
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
     depends_on:
-      - shipping-db
-      - rabbitmq
-      - zipkin
-    restart: always
+      shipping-db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
 
   warehouse-ms:
-    build:
-      context: ./warehouse-service
-      dockerfile: Dockerfile
+    build: { context: ./warehouse-service, dockerfile: Dockerfile }
     container_name: warehouse-ms
-    ports:
-      - "3008:3008"
+    ports: ["3008:3008"]
     environment:
       NODE_ENV: production
       DATABASE_HOST: warehouse-db
       DATABASE_NAME: warehouse_db
       DATABASE_USER: postgres
-      DATABASE_PASSWORD: zafer4519932093
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       RABBITMQ_URL: amqp://rabbitmq:5672
     depends_on:
-      - warehouse-db
-      - rabbitmq
-    restart: always
+      warehouse-db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
 
   notification-ms:
-    build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+    build: { context: ./notification-service, dockerfile: Dockerfile }
     container_name: notification-ms
-    ports:
-      - "3004:3004"
+    ports: ["3004:3004"]
     environment:
       NODE_ENV: production
       RABBITMQ_URL: amqp://rabbitmq:5672
       ZIPKIN_URL: http://zipkin:9411/api/v2/spans
     depends_on:
-      - rabbitmq
-      - zipkin
-    restart: always
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
 
   api-gateway-ms:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+    build: { context: ./api-gateway, dockerfile: Dockerfile }
     container_name: api-gateway-ms
-    ports:
-      - "8080:8080"
+    ports: ["8080:8080"]
     environment:
       NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - auth-ms
       - products-ms
@@ -274,65 +294,77 @@ services:
       - cart-ms
       - shipping-ms
       - payment-ms
-    restart: always
+    restart: unless-stopped
 
   nginx:
     image: nginx:1.27-alpine
     container_name: nginx-proxy
-    ports:
-      - "8085:80"
+    ports: ["8085:80"]
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api-gateway-ms
       - notification-ms
       - minio
-    restart: always
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.runner
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
     container_name: frontend
-    ports:
-      - "3000:3000"
+    ports: ["3000:3000"]
     environment:
       NODE_ENV: production
       INTERNAL_API_URL: http://api-gateway-ms:8080
-      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      INTERNAL_AUTH_URL: http://auth-ms:3001
+      INTERNAL_PRODUCTS_URL: http://products-ms:3002
+      INTERNAL_MINIO_URL: http://minio:9000
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-products}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
     depends_on:
       - api-gateway-ms
-    restart: always
+      - auth-ms
+    restart: unless-stopped
 
-  # --- Cloudflare Zero Trust Tunnel ---
   cloudflared:
+    profiles: ["cloud"]
     image: cloudflare/cloudflared:latest
     container_name: microshop-tunnel
-    restart: unless-stopped
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-eyJhIjoiMTYxNjQ2NGUxMGQxM2U0MjZkYWJkODc2ZDEzMGNlYmEiLCJ0IjoiNTZjM2Y0NWYtYTQxZS00NTczLWE1YmUtYjIwOThlNWQxMzU0IiwicyI6Ik5qYzRaamxtWmpRdE9EWTNOQzAwWTJOakxXRmtPREV0TlRRM1lqVTBPV1E1WWpCbCJ9}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - nginx
       - notification-ms
+    restart: unless-stopped
 
-  # --- n8n Workflow Automation ---
   n8n:
+    profiles: ["automation"]
     image: docker.io/n8nio/n8n:latest
     container_name: n8n
-    restart: always
-    ports:
-      - "5678:5678"
+    ports: ["5678:5678"]
     environment:
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - NODE_ENV=production
-      - GENERIC_TIMEZONE=Africa/Tripoli
-    volumes:
-      - n8n_data:/home/node/.n8n
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      NODE_ENV: production
+      GENERIC_TIMEZONE: Africa/Tripoli
+    volumes: ["n8n_data:/home/node/.n8n"]
+    restart: unless-stopped
 
 volumes:
+  auth_db_data:
+  products_db_data:
+  orders_db_data:
+  payment_db_data:
+  shipping_db_data:
+  warehouse_db_data:
+  cart_redis_data:
+  rabbitmq_data:
+  minio_data:
   n8n_data:
-
-

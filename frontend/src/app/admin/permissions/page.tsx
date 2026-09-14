@@ -217,7 +217,7 @@ export default function PermissionsPage() {
   const isRoleAdmin = selectedRole === "admin";
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8 space-y-8 font-sans selection:bg-emerald-500 selection:text-black">
+    <div className="admin-theme min-h-screen bg-background text-foreground p-4 md:p-8 space-y-8 font-sans selection:bg-emerald-500 selection:text-black">
       {/* Header & Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/80 backdrop-blur-xl p-6 rounded-3xl border border-zinc-800/80 shadow-2xl">
         <div className="space-y-1.5">
@@ -225,7 +225,7 @@ export default function PermissionsPage() {
             <Shield className="w-4 h-4" />
             <span>نظام التحكم في الوصول والأمن المصغّر (RBAC Microservices)</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
             إدارة الصلاحيات والأدوار
             <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-mono font-medium">
               v2.4 Active
@@ -253,7 +253,7 @@ export default function PermissionsPage() {
                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-800"
                 : successMessage
                 ? "bg-emerald-500 text-black shadow-emerald-500/20"
-                : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
+                : "bg-emerald-600 hover:bg-emerald-500 text-foreground shadow-emerald-600/30"
             }`}
           >
             {loading ? (
@@ -275,7 +275,7 @@ export default function PermissionsPage() {
             <span className="text-xs font-medium">إجمالي الأدوار بالمشروع</span>
             <Users className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-white">{customRoles.length} أدوار</div>
+          <div className="text-2xl font-black text-foreground">{customRoles.length} أدوار</div>
           <p className="text-xs text-zinc-500">مقسمة بين أدوار نظام وأدوار مخصصة</p>
         </div>
 
@@ -316,7 +316,7 @@ export default function PermissionsPage() {
         {/* Left Column: Roles Selection Panel (4 cols) */}
         <div className="lg:col-span-4 bg-zinc-900/60 backdrop-blur-md rounded-3xl border border-zinc-800/80 p-5 space-y-5 shadow-xl">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-lg text-white flex items-center gap-2">
+            <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
               <Shield className="w-5 h-5 text-emerald-400" />
               أدوار المستعملين (Roles)
             </h2>
@@ -411,7 +411,7 @@ export default function PermissionsPage() {
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
                   activeTab === "matrix"
                     ? "bg-emerald-500 text-black font-bold shadow-lg shadow-emerald-500/20"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                    : "text-zinc-400 hover:text-foreground hover:bg-zinc-800/60"
                 }`}
               >
                 <Layers className="w-4 h-4" />
@@ -423,7 +423,7 @@ export default function PermissionsPage() {
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
                   activeTab === "audit"
                     ? "bg-emerald-500 text-black font-bold shadow-lg shadow-emerald-500/20"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                    : "text-zinc-400 hover:text-foreground hover:bg-zinc-800/60"
                 }`}
               >
                 <History className="w-4 h-4" />
@@ -453,7 +453,7 @@ export default function PermissionsPage() {
                     <Shield className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-white flex items-center gap-2">
+                    <h3 className="font-bold text-base text-foreground flex items-center gap-2">
                       تخصيص صلاحيات: <span className="text-emerald-400">{currentRoleObj.name}</span>
                     </h3>
                     <p className="text-xs text-zinc-400">{currentRoleObj.description}</p>
@@ -632,7 +632,7 @@ export default function PermissionsPage() {
           {activeTab === "audit" && (
             <div className="bg-zinc-900/60 backdrop-blur-md rounded-3xl border border-zinc-800/80 p-6 space-y-4 shadow-xl">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-                <h3 className="font-bold text-base text-white flex items-center gap-2">
+                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
                   <History className="w-5 h-5 text-emerald-400" />
                   سجل التغييرات وتدقيق الأمان (Security Audit Log)
                 </h3>
@@ -666,13 +666,13 @@ export default function PermissionsPage() {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md space-y-6 shadow-2xl animate-in fade-in zoom-in duration-150">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-              <h3 className="font-bold text-lg text-white flex items-center gap-2">
+              <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
                 <Plus className="w-5 h-5 text-emerald-400" />
                 إضافة دور مخصص جديد
               </h3>
               <button
                 onClick={() => setShowAddRoleModal(false)}
-                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors"
+                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-foreground rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -687,7 +687,7 @@ export default function PermissionsPage() {
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
                   required
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -699,7 +699,7 @@ export default function PermissionsPage() {
                   value={newRoleCode}
                   onChange={(e) => setNewRoleCode(e.target.value)}
                   required
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder-zinc-500 font-mono focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -710,7 +710,7 @@ export default function PermissionsPage() {
                   value={newRoleDesc}
                   onChange={(e) => setNewRoleDesc(e.target.value)}
                   rows={3}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 resize-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-foreground placeholder-zinc-500 focus:outline-none focus:border-emerald-500 resize-none"
                 />
               </div>
 
@@ -724,7 +724,7 @@ export default function PermissionsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground shadow-lg shadow-emerald-600/30"
                 >
                   إنشاء الدور الآن
                 </button>
@@ -739,13 +739,13 @@ export default function PermissionsPage() {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md space-y-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-              <h3 className="font-bold text-lg text-white flex items-center gap-2">
+              <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
                 <Copy className="w-5 h-5 text-emerald-400" />
                 نسخ صلاحيات من دور آخر
               </h3>
               <button
                 onClick={() => setShowCloneModal(false)}
-                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors"
+                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-foreground rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -753,7 +753,7 @@ export default function PermissionsPage() {
 
             <div className="space-y-4">
               <p className="text-xs text-zinc-400 leading-relaxed">
-                سيتم تصفية كافة الصلاحيات الحالية لـ (<strong className="text-white">{currentRoleObj.name}</strong>) ونقل كافة الصلاحيات المحددة من الدور المصدر.
+                سيتم تصفية كافة الصلاحيات الحالية لـ (<strong className="text-foreground">{currentRoleObj.name}</strong>) ونقل كافة الصلاحيات المحددة من الدور المصدر.
               </p>
 
               <div className="space-y-1.5">
@@ -761,7 +761,7 @@ export default function PermissionsPage() {
                 <select
                   value={sourceCloneRole}
                   onChange={(e) => setSourceCloneRole(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-emerald-500"
                 >
                   {customRoles
                     .filter((r) => r.id !== selectedRole)
@@ -784,7 +784,7 @@ export default function PermissionsPage() {
                 <button
                   type="button"
                   onClick={handleCloneRole}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground"
                 >
                   تأكيد النسخ
                 </button>

@@ -12,6 +12,10 @@ export class ProductsService {
     private productsRepository: Repository<Product>,
   ) { }
 
+  async findAll(): Promise<Product[]> {
+    return this.productsRepository.find({ order: { created_at: 'DESC' } });
+  }
+
   // جلب جميع المنتجات النشطة
   async findAllActive(): Promise<Product[]> {
     return this.productsRepository.find({

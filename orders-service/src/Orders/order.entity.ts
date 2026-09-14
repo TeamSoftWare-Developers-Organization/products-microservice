@@ -1,22 +1,46 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('orders')
 export class Order {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column()
-    productId: number;
+  @Column()
+  productId: number;
 
-    @Column()
-    quantity: number;
+  @Column()
+  quantity: number;
 
-    @Column({ default: 'PENDING' })
-    status: string;
+  @Column({ type: 'numeric', precision: 10, scale: 3, default: 0 })
+  unitPrice: number;
 
-    @Column({ nullable: true })
-    userId: string;
+  @Column({ type: 'numeric', precision: 12, scale: 3, default: 0 })
+  totalAmount: number;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @Column({ default: 1 })
+  warehouseId: number;
+
+  @Column({ default: 'CASH' })
+  gateway: string;
+
+  @Column({ default: 'PENDING' })
+  status: string;
+
+  @Column({ nullable: true })
+  userId: string;
+
+  @Column({ nullable: true })
+  customerName: string;
+
+  @Column({ nullable: true })
+  customerPhone: string;
+
+  @Column({ nullable: true })
+  customerCity: string;
+
+  @Column({ nullable: true })
+  customerAddress: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }

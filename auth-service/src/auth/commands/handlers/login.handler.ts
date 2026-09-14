@@ -20,11 +20,11 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
 
         const user = await this.usersRepository.findOne({ where: { email } });
 
-        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+        if (!user || !user.is_active || !(await bcrypt.compare(password, user.password_hash))) {
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        const payload = { sub: user.id, email: user.email, role: user.role };
+        const payload = { sub: user.id, email: user.email, name: user.name || user.email.split('@')[0], role: user.role };
         const accessToken = await this.jwtService.signAsync(payload);
 
         return { accessToken };

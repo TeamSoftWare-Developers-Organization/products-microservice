@@ -35,6 +35,6 @@ spec:
             - name: DATABASE_USER
               value: "postgres"
             - name: DATABASE_PASSWORD
-              value: "zafer4519932093"
+              value: "CHANGE_ME_POSTGRES_PASSWORD"
             - name: RABBITMQ_URL
               value: "amqp://rabbitmq:5672"

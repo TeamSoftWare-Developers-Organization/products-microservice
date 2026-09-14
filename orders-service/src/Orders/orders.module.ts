@@ -16,8 +16,6 @@ import { GetOrdersHandler } from './queries/handlers/get-orders.handler';
 export const CommandHandlers = [CreateOrderHandler, ConfirmOrderHandler, RejectOrderHandler, FailOrderHandler];
 export const QueryHandlers = [GetOrdersHandler];
 
-const defaultRmqUrl = Buffer.from('YW1xcDovL3JhYmJpdG1xOjU2NzI=', 'base64').toString('utf8');
-
 @Module({
     imports: [
         TypeOrmModule.forFeature([Order]),
@@ -28,7 +26,7 @@ const defaultRmqUrl = Buffer.from('YW1xcDovL3JhYmJpdG1xOjU2NzI=', 'base64').toSt
                 useFactory: (config: ConfigService) => ({
                     transport: Transport.RMQ,
                     options: {
-                        urls: [config.get<string>('RABBITMQ_URL') || defaultRmqUrl],
+                        urls: [config.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
                         queue: 'warehouse_service_queue',
                         queueOptions: {
                             durable: true,
@@ -43,7 +41,7 @@ const defaultRmqUrl = Buffer.from('YW1xcDovL3JhYmJpdG1xOjU2NzI=', 'base64').toSt
                 useFactory: (config: ConfigService) => ({
                     transport: Transport.RMQ,
                     options: {
-                        urls: [config.get<string>('RABBITMQ_URL') || defaultRmqUrl],
+                        urls: [config.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
                         queue: 'notifications_queue',
                         queueOptions: {
                             durable: true,
@@ -58,7 +56,7 @@ const defaultRmqUrl = Buffer.from('YW1xcDovL3JhYmJpdG1xOjU2NzI=', 'base64').toSt
                 useFactory: (config: ConfigService) => ({
                     transport: Transport.RMQ,
                     options: {
-                        urls: [config.get<string>('RABBITMQ_URL') || defaultRmqUrl],
+                        urls: [config.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
                         queue: 'shipping_service_queue',
                         queueOptions: {
                             durable: true,
@@ -73,7 +71,7 @@ const defaultRmqUrl = Buffer.from('YW1xcDovL3JhYmJpdG1xOjU2NzI=', 'base64').toSt
                 useFactory: (config: ConfigService) => ({
                     transport: Transport.RMQ,
                     options: {
-                        urls: [config.get<string>('RABBITMQ_URL') || defaultRmqUrl],
+                        urls: [config.get<string>('RABBITMQ_URL') || 'amqp://rabbitmq:5672'],
                         queue: 'cart_service_queue',
                         queueOptions: {
                             durable: true,

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 
 const token = jwt.sign(
   { sub: "0a035e08-ddcc-4186-aaa0-8b97eba4927b", email: "zaefrali90@gmail.com", role: "admin" },
-  "super_secret_key_123",
+  "CHANGE_ME_JWT_SECRET",
   { expiresIn: '7d' }
 );
 

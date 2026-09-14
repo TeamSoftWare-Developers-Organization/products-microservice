@@ -1,47 +1,60 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
+
+export interface CartItem {
+  productId: string;
+  name_ar?: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+}
 
 @Injectable()
 export class CartService {
   constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) {}
 
-  private getCartKey(userId: string): string {
-    return `cart:${userId}`;
-  }
+  private getCartKey(userId: string): string { return `cart:${userId}`; }
 
-  // 1. Get current cart
-  async getCart(userId: string): Promise<any> {
+  async getCart(userId: string): Promise<{ items: CartItem[]; totalPrice: number }> {
     const cartData = await this.redis.get(this.getCartKey(userId));
     return cartData ? JSON.parse(cartData) : { items: [], totalPrice: 0 };
   }
 
-  // 2. Add or update product in cart
-  async addToCart(userId: string, item: { productId: string; name_ar: string; price: number; quantity: number }) {
-    const cart = await this.getCart(userId);
-    
-    // Check if the item already exists in the cart to update the quantity
-    const existingItemIndex = cart.items.findIndex(i => i.productId === item.productId);
-    if (existingItemIndex > -1) {
-      cart.items[existingItemIndex].quantity += item.quantity;
-    } else {
-      cart.items.push(item);
-    }
-
-    // Recalculate total price
-    const total = cart.items.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0);
-    cart.total = total;
-    cart.totalPrice = total;
-
-    // Save cart in Redis with 7 days TTL (604800 seconds)
+  private async save(userId: string, items: CartItem[]) {
+    const normalized = items.filter((item) => item.quantity > 0);
+    const totalPrice = normalized.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+    const cart = { items: normalized, totalPrice: Number(totalPrice.toFixed(3)) };
     await this.redis.set(this.getCartKey(userId), JSON.stringify(cart), 'EX', 604800);
     return cart;
   }
 
-  async addItem(userId: string, item: { productId: string; name_ar?: string; price: number; quantity: number }) {
-    return this.addToCart(userId, item as any);
+  async addItem(userId: string, item: CartItem) {
+    const quantity = Number(item.quantity);
+    const price = Number(item.price);
+    if (!item.productId || !Number.isFinite(price) || price < 0 || !Number.isInteger(quantity) || quantity <= 0) {
+      throw new BadRequestException('Invalid cart item');
+    }
+    const cart = await this.getCart(userId);
+    const existing = cart.items.find((x) => String(x.productId) === String(item.productId));
+    if (existing) existing.quantity += quantity;
+    else cart.items.push({ ...item, productId: String(item.productId), price, quantity });
+    return this.save(userId, cart.items);
   }
 
-  // 3. Clear cart (usually after order placement)
+  async updateQuantity(userId: string, productId: string, quantity: number) {
+    if (!Number.isInteger(quantity) || quantity < 0) throw new BadRequestException('Quantity must be a non-negative integer');
+    const cart = await this.getCart(userId);
+    const item = cart.items.find((x) => String(x.productId) === String(productId));
+    if (!item) return cart;
+    item.quantity = quantity;
+    return this.save(userId, cart.items);
+  }
+
+  async removeItem(userId: string, productId: string) {
+    const cart = await this.getCart(userId);
+    return this.save(userId, cart.items.filter((x) => String(x.productId) !== String(productId)));
+  }
+
   async clearCart(userId: string): Promise<void> {
     await this.redis.del(this.getCartKey(userId));
   }

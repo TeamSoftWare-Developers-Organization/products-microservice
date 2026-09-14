@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, UseGuards, Req, Param } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AuthGuard } from './guards/auth.guard';
 
@@ -7,41 +7,33 @@ import { AuthGuard } from './guards/auth.guard';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
+  private userId(req: any): string {
+    return String(req.user?.sub || req.user?.id);
+  }
+
   @Get()
-  async getCart(@Req() req: any) {
-    // Extract userId from JWT payload
-    const userId = req.user?.sub || req.user?.id || 'guest';
-    return await this.cartService.getCart(userId);
+  getCart(@Req() req: any) {
+    return this.cartService.getCart(this.userId(req));
   }
 
-  @Get(':userId')
-  async getCartByUser(@Param('userId') userId: string) {
-    return await this.cartService.getCart(userId);
+  @Post('items')
+  addToCart(@Req() req: any, @Body() itemDto: { productId: string; name_ar?: string; price: number; quantity: number; imageUrl?: string }) {
+    return this.cartService.addItem(this.userId(req), itemDto);
   }
 
-  @Post('add')
-  async addToCart(@Req() req: any, @Body() itemDto: { productId: string; name_ar?: string; price: number; quantity: number }) {
-    const userId = req.user?.sub || req.user?.id || 'guest';
-    return await this.cartService.addItem(userId, itemDto);
+  @Patch('items/:productId')
+  updateQuantity(@Req() req: any, @Param('productId') productId: string, @Body() body: { quantity: number }) {
+    return this.cartService.updateQuantity(this.userId(req), productId, Number(body.quantity));
   }
 
-  @Post(':userId/items')
-  async addItem(
-    @Param('userId') userId: string,
-    @Body() item: { productId: string; name_ar?: string; quantity: number; price: number },
-  ) {
-    return await this.cartService.addItem(userId, item);
+  @Delete('items/:productId')
+  removeItem(@Req() req: any, @Param('productId') productId: string) {
+    return this.cartService.removeItem(this.userId(req), productId);
   }
 
-  @Delete('clear')
+  @Delete()
   async clearCart(@Req() req: any) {
-    const userId = req.user?.sub || req.user?.id || 'guest';
-    await this.cartService.clearCart(userId);
+    await this.cartService.clearCart(this.userId(req));
     return { message: 'تم تفريغ السلة بنجاح' };
-  }
-
-  @Delete(':userId')
-  async clearCartByUser(@Param('userId') userId: string) {
-    return await this.cartService.clearCart(userId);
   }
 }

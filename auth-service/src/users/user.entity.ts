@@ -9,6 +9,9 @@ export class User {
     @Column({ unique: true })
     email: string;
 
+    @Column({ type: 'varchar', length: 160, nullable: true })
+    name?: string | null;
+
     @Column()
     password_hash: string;
 

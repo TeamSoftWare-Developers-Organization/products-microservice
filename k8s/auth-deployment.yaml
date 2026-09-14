@@ -35,8 +35,8 @@ spec:
             - name: DATABASE_USER
               value: "postgres"
             - name: DATABASE_PASSWORD
-              value: "zafer4519932093"
+              value: "CHANGE_ME_POSTGRES_PASSWORD"
             - name: RABBITMQ_URL
               value: "amqp://rabbitmq:5672"
             - name: JWT_SECRET
-              value: "super_secret_key_123"
+              value: "CHANGE_ME_JWT_SECRET"

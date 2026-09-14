@@ -4,33 +4,38 @@ import sharp from 'sharp';
 
 @Injectable()
 export class MinioService implements OnModuleInit {
-  private minioClient: Minio.Client;
+  private readonly minioClient: Minio.Client;
   private readonly bucketName: string;
   private readonly publicUrl?: string;
+  private readonly publicRead: boolean;
 
   constructor() {
-    const rawEndpoint = process.env.S3_ENDPOINT || process.env.MINIO_ENDPOINT || 'minio';
+    const configuredEndpoint = process.env.S3_ENDPOINT || process.env.MINIO_ENDPOINT || 'minio';
+    const looksLikePlaceholder = /your_|xxxxxxxx|example|cloudflare_account_id/i.test(configuredEndpoint);
+    const rawEndpoint = looksLikePlaceholder ? 'minio' : configuredEndpoint;
+
     let endPoint = rawEndpoint;
     let useSSL = process.env.S3_USE_SSL === 'true' || rawEndpoint.startsWith('https://');
-    let port = parseInt(process.env.S3_PORT || process.env.MINIO_PORT || (useSSL ? '443' : '9000'), 10);
+    let port = Number(process.env.S3_PORT || process.env.MINIO_PORT || (useSSL ? 443 : 9000));
 
     if (rawEndpoint.startsWith('http://') || rawEndpoint.startsWith('https://')) {
-      try {
-        const url = new URL(rawEndpoint);
-        endPoint = url.hostname;
-        useSSL = url.protocol === 'https:';
-        port = url.port ? parseInt(url.port, 10) : (useSSL ? 443 : 80);
-      } catch (e) {
-        endPoint = rawEndpoint;
-      }
+      const url = new URL(rawEndpoint);
+      endPoint = url.hostname;
+      useSSL = url.protocol === 'https:';
+      port = url.port ? Number(url.port) : useSSL ? 443 : 80;
     }
 
     this.bucketName = process.env.S3_BUCKET_NAME || process.env.MINIO_BUCKET || 'products';
-    this.publicUrl = process.env.S3_PUBLIC_URL || process.env.R2_PUBLIC_URL;
+    const configuredPublicUrl = process.env.S3_PUBLIC_URL || process.env.R2_PUBLIC_URL;
+    this.publicUrl = configuredPublicUrl && !/xxxxxxxx|example|your_/i.test(configuredPublicUrl)
+      ? configuredPublicUrl.replace(/\/+$/, '')
+      : undefined;
+    this.publicRead = process.env.STORAGE_PUBLIC_READ !== 'false';
 
-    const accessKey = process.env.S3_ACCESS_KEY || process.env.MINIO_ACCESS_KEY || 'minioadmin';
-    const secretKey = process.env.S3_SECRET_KEY || process.env.MINIO_SECRET_KEY || 'minioadmin';
-    const region = process.env.S3_REGION || 'auto';
+    const configuredAccessKey = process.env.S3_ACCESS_KEY || process.env.MINIO_ACCESS_KEY || 'minioadmin';
+    const configuredSecretKey = process.env.S3_SECRET_KEY || process.env.MINIO_SECRET_KEY || 'minioadmin';
+    const accessKey = /your_|example/i.test(configuredAccessKey) ? 'minioadmin' : configuredAccessKey;
+    const secretKey = /your_|example/i.test(configuredSecretKey) ? 'minioadmin' : configuredSecretKey;
 
     this.minioClient = new Minio.Client({
       endPoint,
@@ -38,45 +43,61 @@ export class MinioService implements OnModuleInit {
       useSSL,
       accessKey,
       secretKey,
-      region,
+      region: process.env.S3_REGION || 'us-east-1',
     });
+
+    console.log(`[StorageService] endpoint=${useSSL ? 'https' : 'http'}://${endPoint}:${port}, bucket=${this.bucketName}`);
   }
 
   async onModuleInit() {
-    let retries = 5;
+    let retries = 8;
     while (retries > 0) {
       try {
         const exists = await this.minioClient.bucketExists(this.bucketName);
         if (!exists) {
-          await this.minioClient.makeBucket(this.bucketName, 'auto');
-          console.log(`[StorageService] Bucket "${this.bucketName}" created successfully.`);
-        } else {
-          console.log(`[StorageService] Bucket "${this.bucketName}" is ready.`);
+          await this.minioClient.makeBucket(this.bucketName, process.env.S3_REGION || 'us-east-1');
         }
-        break;
+
+        if (this.publicRead) {
+          const policy = {
+            Version: '2012-10-17',
+            Statement: [{
+              Effect: 'Allow',
+              Principal: { AWS: ['*'] },
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+            }],
+          };
+          await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
+        }
+
+        console.log(`[StorageService] Bucket "${this.bucketName}" is ready.`);
+        return;
       } catch (error) {
         retries--;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`[StorageService] Storage check warning (${retries} attempts left):`, errorMessage);
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[StorageService] Storage check warning (${retries} attempts left): ${message}`);
         if (retries === 0) {
-          console.error('[StorageService] Could not verify bucket, proceeding with runtime operations.');
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          console.error('[StorageService] Storage unavailable at startup; product APIs will continue and uploads can be retried later.');
+          return;
         }
+        await new Promise((resolve) => setTimeout(resolve, 2500));
       }
     }
   }
 
   async uploadFile(file: any): Promise<string> {
+    if (!file?.buffer) throw new Error('Invalid upload payload');
+
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const baseName = file.originalname
-      ? file.originalname.substring(0, file.originalname.lastIndexOf('.')).replace(/[^a-zA-Z0-9.-]/g, '_')
-      : 'image';
-    const filename = `${uniqueSuffix}-${baseName}.webp`;
+    const original = String(file.originalname || 'image');
+    const stem = original.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || 'image';
+    const filename = `${uniqueSuffix}-${stem}.webp`;
 
     const optimizedBuffer = await sharp(file.buffer)
-      .resize({ width: 1200, withoutEnlargement: true })
-      .webp({ quality: 80 })
+      .rotate()
+      .resize({ width: 1400, height: 1400, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82, effort: 4 })
       .toBuffer();
 
     await this.minioClient.putObject(
@@ -84,15 +105,13 @@ export class MinioService implements OnModuleInit {
       filename,
       optimizedBuffer,
       optimizedBuffer.length,
-      { 'Content-Type': 'image/webp' },
+      {
+        'Content-Type': 'image/webp',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
     );
 
-    if (this.publicUrl) {
-      const cleanBase = this.publicUrl.replace(/\/+$/, '');
-      return `${cleanBase}/${filename}`;
-    }
-
+    if (this.publicUrl) return `${this.publicUrl}/${filename}`;
     return `/uploads/${filename}`;
   }
 }
-

@@ -1,15 +1,43 @@
+# Dependencies
 node_modules/
 **/node_modules/
+
+# Next.js & Build Outputs
 .next/
 **/.next/
 dist/
 **/dist/
-.env
-.env.local
-*.log
-.DS_Store
+build/
 coverage/
 *.tsbuildinfo
 frontend-next-cache/
 frontend-next-cache-final/
 frontend-next-cache-new/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data directories
+*data/

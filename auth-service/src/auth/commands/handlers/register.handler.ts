@@ -15,7 +15,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
     ) { }
 
     async execute(command: RegisterCommand): Promise<{ message: string }> {
-        const { email, password, role } = command.registerDto;
+        const { email, password, name } = command.registerDto;
 
         const existingUser = await this.usersRepository.findOne({ where: { email } });
         if (existingUser) {
@@ -26,9 +26,10 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand> {
         const password_hash = await bcrypt.hash(password, salt);
 
         const user = this.usersRepository.create({
-            email,
+            email: email.trim().toLowerCase(),
+            name: name?.trim() || email.split('@')[0],
             password_hash,
-            role: role || UserRole.USER,
+            role: UserRole.USER,
         });
 
         await this.usersRepository.save(user);

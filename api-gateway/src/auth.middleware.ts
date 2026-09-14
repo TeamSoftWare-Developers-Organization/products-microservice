@@ -5,13 +5,7 @@ import * as jwt from 'jsonwebtoken';
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
     use(req: Request, res: Response, next: NextFunction) {
-        // Enforce authentication ONLY for POST /api/orders (Note: Ingress or main.ts might include /api)
-        const isOrderPost = (req.originalUrl === '/api/orders' || req.originalUrl === '/orders') && req.method === 'POST';
-
-        if (!isOrderPost) {
-            return next();
-        }
-
+        // This middleware is only mounted on protected gateway routes.
         const authHeader = req.headers.authorization;
         if (!authHeader) {
             throw new UnauthorizedException('Authorization header missing');
@@ -24,7 +18,10 @@ export class AuthMiddleware implements NestMiddleware {
 
         try {
             // Using same secret as auth-service
-            const secret = process.env.JWT_SECRET || 'super_secret_key_123';
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                throw new UnauthorizedException('JWT secret is not configured');
+            }
             const decoded = jwt.verify(token, secret);
             (req as any).user = decoded; // Attach user to request object
             next();

@@ -36,7 +36,7 @@
   --card-foreground: 0 0% 98%;
   --popover: 240 10% 3.9%;
   --popover-foreground: 0 0% 98%;
-  --primary: 263.4 70% 50.4%; /* Vivid Purple */
+  --primary: 160 84% 39%; /* MicroStore Emerald */
   --primary-foreground: 210 40% 98%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
@@ -48,7 +48,7 @@
   --destructive-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
-  --ring: 240 4.9% 83.9%;
+  --ring: 160 84% 39%;
   --radius: 0.75rem;
 }
 
@@ -59,7 +59,7 @@
   --card-foreground: 240 10% 3.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
-  --primary: 263.4 70% 50.4%;
+  --primary: 160 84% 39%;
   --primary-foreground: 210 40% 98%;
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 5.9% 10%;
@@ -71,7 +71,7 @@
   --destructive-foreground: 210 40% 98%;
   --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
-  --ring: 263.4 70% 50.4%;
+  --ring: 160 84% 39%;
 }
 
 body {
@@ -90,4 +90,109 @@ body {
 
 .animate-fade-in {
     animation: fade-in 0.5s ease-out forwards;
+}
+
+/* MicroStore design system */
+html { scroll-behavior: smooth; }
+body { min-height: 100vh; background-image: radial-gradient(circle at 15% 10%, hsl(160 84% 39% / .07), transparent 28%), radial-gradient(circle at 90% 15%, hsl(199 89% 48% / .05), transparent 24%); }
+.surface-card {
+  border: 1px solid hsl(var(--border) / .75);
+  background: hsl(var(--card) / .72);
+  backdrop-filter: blur(18px);
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+}
+.hero-panel {
+  border: 1px solid hsl(var(--border) / .75);
+  background: linear-gradient(135deg, hsl(var(--card) / .88), hsl(var(--background) / .72));
+  border-radius: 1.5rem;
+  box-shadow: 0 24px 70px rgba(0,0,0,.14);
+}
+.product-card { box-shadow: 0 12px 40px rgba(0,0,0,.10); transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+.product-card:hover { transform: translateY(-4px); border-color: rgba(16,185,129,.35); box-shadow: 0 22px 60px rgba(0,0,0,.18); }
+.loader-ring { width: 34px; height: 34px; border-radius: 999px; border: 3px solid hsl(var(--border)); border-top-color: rgb(16 185 129); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+.line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+
+/* Global shell and theme compatibility */
+* { border-color: hsl(var(--border)); }
+::selection { background: rgb(16 185 129 / .28); }
+
+/* Screens inherited from the original dark-only admin UI.
+   These mappings make them honor the global light setting without changing status colors. */
+[data-mode=light] .bg-zinc-950,
+[data-mode=light] .bg-zinc-950\\/80,
+[data-mode=light] .bg-zinc-950\\/50 { background-color: hsl(var(--background)) !important; }
+[data-mode=light] .bg-zinc-900,
+[data-mode=light] .bg-zinc-900\\/90,
+[data-mode=light] .bg-zinc-900\\/80,
+[data-mode=light] .bg-zinc-900\\/60,
+[data-mode=light] .bg-zinc-900\\/50,
+[data-mode=light] .bg-zinc-900\\/40 { background-color: hsl(var(--card) / .92) !important; }
+[data-mode=light] .bg-zinc-800,
+[data-mode=light] .bg-zinc-800\\/80,
+[data-mode=light] .bg-zinc-800\\/60,
+[data-mode=light] .bg-zinc-800\\/40 { background-color: hsl(var(--muted)) !important; }
+[data-mode=light] .border-zinc-800,
+[data-mode=light] .border-zinc-800\\/80,
+[data-mode=light] .border-zinc-800\\/60,
+[data-mode=light] .border-zinc-800\\/50,
+[data-mode=light] .border-zinc-700,
+[data-mode=light] .border-zinc-700\\/60,
+[data-mode=light] .border-zinc-700\\/50 { border-color: hsl(var(--border)) !important; }
+[data-mode=light] .text-white,
+[data-mode=light] .text-zinc-100,
+[data-mode=light] .text-zinc-200,
+[data-mode=light] .text-zinc-300 { color: hsl(var(--foreground)) !important; }
+[data-mode=light] .text-zinc-400,
+[data-mode=light] .text-zinc-500 { color: hsl(var(--muted-foreground)) !important; }
+[data-mode=light] input, [data-mode=light] select, [data-mode=light] textarea { color-scheme: light; }
+[data-mode=dark] input, [data-mode=dark] select, [data-mode=dark] textarea { color-scheme: dark; }
+
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+
+/* Admin pages: robust semantic light-mode bridge for legacy Tailwind zinc utilities. */
+[data-mode=light] .admin-theme [class*="bg-zinc-950"],
+[data-mode=light] .admin-theme [class*="bg-zinc-900"] {
+  background-color: hsl(var(--card)) !important;
+}
+[data-mode=light] .admin-theme [class*="bg-zinc-800"] {
+  background-color: hsl(var(--muted)) !important;
+}
+[data-mode=light] .admin-theme [class*="from-zinc-950"],
+[data-mode=light] .admin-theme [class*="from-zinc-900"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position) !important;
+}
+[data-mode=light] .admin-theme [class*="to-zinc-950"],
+[data-mode=light] .admin-theme [class*="to-zinc-900"] {
+  --tw-gradient-to: hsl(var(--muted)) var(--tw-gradient-to-position) !important;
+}
+[data-mode=light] .admin-theme [class*="border-zinc-"] {
+  border-color: hsl(var(--border)) !important;
+}
+[data-mode=light] .admin-theme [class*="text-zinc-100"],
+[data-mode=light] .admin-theme [class*="text-zinc-200"],
+[data-mode=light] .admin-theme [class*="text-zinc-300"] {
+  color: hsl(var(--foreground)) !important;
+}
+[data-mode=light] .admin-theme [class*="text-zinc-400"],
+[data-mode=light] .admin-theme [class*="text-zinc-500"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+[data-mode=light] .admin-theme input,
+[data-mode=light] .admin-theme select,
+[data-mode=light] .admin-theme textarea {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+[data-mode=light] .admin-theme .shadow-2xl,
+[data-mode=light] .admin-theme .shadow-xl,
+[data-mode=light] .admin-theme .shadow-lg {
+  --tw-shadow-color: rgb(15 23 42 / .08) !important;
 }

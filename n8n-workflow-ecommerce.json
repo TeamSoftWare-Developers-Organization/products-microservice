@@ -38,7 +38,7 @@
         "url": "http://auth-ms:3001/auth/login",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"email\": \"admin@microshop.com\",\n  \"password\": \"zafer4519932093\"\n}",
+        "jsonBody": "{\n  \"email\": \"admin@microshop.com\",\n  \"password\": \"CHANGE_ME_POSTGRES_PASSWORD\"\n}",
         "options": {
           "allowUnauthorizedCerts": true
         }

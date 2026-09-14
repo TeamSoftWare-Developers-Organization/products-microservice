@@ -17,31 +17,56 @@ export class OrdersService {
     ) { }
 
 
-    async createOrder(productId: number, quantity: number, userId?: string): Promise<Order> {
-        const order = this.ordersRepository.create({ productId, quantity, status: 'PENDING', userId });
+    async createOrder(input: {
+        productId: number;
+        quantity: number;
+        userId?: string;
+        warehouseId?: number;
+        gateway?: string;
+        customerData?: { name?: string; phone?: string; city?: string; address?: string };
+        unitPrice?: number;
+    }): Promise<Order> {
+        const quantity = Math.max(1, Number(input.quantity));
+        const unitPrice = Math.max(0, Number(input.unitPrice || 0));
+        const totalAmount = Number((unitPrice * quantity).toFixed(3));
+        const order = this.ordersRepository.create({
+            productId: Number(input.productId),
+            quantity,
+            unitPrice,
+            totalAmount,
+            warehouseId: Number(input.warehouseId || 1),
+            gateway: input.gateway || 'CASH',
+            status: 'PENDING',
+            userId: input.userId,
+            customerName: input.customerData?.name,
+            customerPhone: input.customerData?.phone,
+            customerCity: input.customerData?.city,
+            customerAddress: input.customerData?.address,
+        });
         const savedOrder = await this.ordersRepository.save(order);
 
-        console.log(`[Orders Service] Attempting to emit order_created via Breaker for order ${savedOrder.id}`);
+        const event = {
+            orderId: savedOrder.id,
+            productId: savedOrder.productId,
+            quantity: savedOrder.quantity,
+            userId: savedOrder.userId,
+            warehouseId: savedOrder.warehouseId,
+            gateway: savedOrder.gateway,
+            totalAmount: Number(savedOrder.totalAmount),
+            customerData: {
+                name: savedOrder.customerName,
+                phone: savedOrder.customerPhone,
+                city: savedOrder.customerCity,
+                address: savedOrder.customerAddress,
+            },
+        };
 
         try {
-            await this.resilienceService.fire('order_created', {
-                orderId: savedOrder.id,
-                productId,
-                quantity,
-                userId
-            });
-
-            // Also notify notification service directly if we want
-            this.notificationClient.emit('order_created', {
-                orderId: savedOrder.id,
-                productId,
-                quantity,
-                userId
-            });
+            await this.resilienceService.fire('order_created', event);
+            this.notificationClient.emit('order_created', event);
         } catch (error: any) {
-            console.error(`[Orders Service] Circuit Breaker blocked/failed emit: ${error?.message || error}`);
+            console.error(`[Orders Service] Failed to publish order_created: ${error?.message || error}`);
         }
-
         return savedOrder;
     }
 
@@ -55,7 +80,13 @@ export class OrdersService {
         this.cartClient.emit('order_confirmed', { orderId, userId: order?.userId });
 
         // إخطار خدمة الشحن لإنشاء بوليصة الشحن تلقائياً
-        this.shippingClient.emit('order_confirmed_for_shipping', { orderId });
+        this.shippingClient.emit('order_confirmed_for_shipping', {
+            orderId,
+            totalAmount: Number(order?.totalAmount || 0),
+            customerData: {
+                name: order?.customerName, phone: order?.customerPhone, city: order?.customerCity, address: order?.customerAddress,
+            },
+        });
         console.log(`[Orders Service] Emitted order_confirmed_for_shipping for order ${orderId}`);
     }
 

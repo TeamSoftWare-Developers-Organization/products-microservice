@@ -14,6 +14,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: "${{ env.HAS_TOKEN != '' }}"
+    env:
+      HAS_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
