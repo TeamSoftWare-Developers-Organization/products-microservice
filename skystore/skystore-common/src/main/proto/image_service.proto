@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package skystore.media;
+option java_package = "com.skystore.media.grpc";
+option java_multiple_files = true;
+
+service ImageProcessor {
+  rpc OptimizeImage (ImageRequest) returns (ImageResponse);
+}
+
+message ImageRequest {
+  string image_id = 1;
+  bytes raw_bytes = 2;
+  int32 target_width = 3;
+  int32 target_height = 4;
+}
+
+message ImageResponse {
+  string image_id = 1;
+  bytes optimized_bytes = 2;
+  string format = 3;
+  int64 original_size = 4;
+  int64 optimized_size = 5;
+}

@@ -1,0 +1,80 @@
+type Query {
+    # استعلامات المنتجات
+    products(limit: Int = 20): [Product!]!
+    productById(id: ID!): Product
+    searchProducts(keyword: String!): [Product!]!
+
+    # استعلام سلة المشتريات (تُجلب من Redis بالـ userId)
+    cart(userId: ID!): Cart
+
+    # استعلام طلبات المستخدم
+    userOrders(userId: ID!): [Order!]!
+}
+
+type Mutation {
+    # عمليات إدارة المنتجات
+    createProduct(input: CreateProductInput!): Product!
+    updateStock(id: ID!, quantity: Int!): Product!
+
+    # عمليات السلة
+    addToCart(userId: ID!, input: CartItemInput!): Cart!
+    removeFromCart(userId: ID!, productId: ID!): Cart!
+    clearCart(userId: ID!): Boolean!
+
+    # عمليات إنشاء الطلبات
+    checkout(userId: ID!): Order!
+}
+
+type Product {
+    id: ID!
+    name: String!
+    description: String
+    price: Float!
+    stockQuantity: Int!
+    imageUrl: String
+    createdAt: String
+}
+
+input CreateProductInput {
+    name: String!
+    description: String
+    price: Float!
+    stockQuantity: Int!
+    imageUrl: String
+}
+
+type Cart {
+    userId: ID!
+    items: [CartItem!]!
+    totalPrice: Float!
+}
+
+type CartItem {
+    productId: ID!
+    name: String!
+    price: Float!
+    quantity: Int!
+    subtotal: Float!
+}
+
+input CartItemInput {
+    productId: ID!
+    quantity: Int!
+}
+
+type Order {
+    id: ID!
+    userId: ID!
+    totalAmount: Float!
+    status: String!
+    createdAt: String!
+    items: [OrderItemRecord!]!
+}
+
+type OrderItemRecord {
+    id: ID!
+    productId: ID!
+    productName: String!
+    quantity: Int!
+    unitPrice: Float!
+}

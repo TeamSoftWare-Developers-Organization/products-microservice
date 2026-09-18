@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: skystore-mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: skystore_db
+      MYSQL_USER: sky_user
+      MYSQL_PASSWORD: sky_secure_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  postgres-keycloak:
+    image: postgres:16-alpine
+    container_name: skystore-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_user
+      POSTGRES_PASSWORD: keycloak_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: skystore-redis
+    restart: always
+    ports:
+      - "6380:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: skystore-rabbitmq
+    restart: always
+    ports:
+      - "5673:5672"   # AMQP protocol
+      - "15673:15672" # لوحة الإدارة
+    environment:
+      RABBITMQ_DEFAULT_USER: sky_admin
+      RABBITMQ_DEFAULT_PASS: sky_admin_pass
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: skystore-keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://skystore-postgres:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: keycloak_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_secure_pass
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres-keycloak
+
+  rust-engine:
+    build:
+      context: ./skystore-rust-engine
+      dockerfile: Dockerfile
+    container_name: skystore-rust-engine
+    restart: always
+    ports:
+      - "50051:50051"
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: skystore-prometheus
+    restart: always
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: skystore-loki
+    restart: always
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: skystore-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin_monitor_pass
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  mariadb_data:
+  postgres_data:

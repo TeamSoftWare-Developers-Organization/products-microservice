@@ -1,0 +1,8 @@
+name 'skystore_host'
+maintainer 'SkyStore DevOps Team'
+maintainer_email 'devops@skystore.local'
+license 'All Rights Reserved'
+description 'Installs/Configures skystore host environment on Fedora Server'
+version '0.1.0'
+chef_version '>= 16.0'
+supports 'fedora'
