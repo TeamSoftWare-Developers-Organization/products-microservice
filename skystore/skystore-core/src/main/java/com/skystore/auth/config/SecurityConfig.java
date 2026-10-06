@@ -19,13 +19,23 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // إتاحة واجهات GraphQL العامة والـ WebSockets واستكشاف GraphiQL
-                .requestMatchers("/graphiql/**", "/graphql/**", "/ws/**").permitAll()
+                // إتاحة واجهات GraphQL العامة والـ WebSockets واستكشاف GraphiQL والمراقبة
+                .requestMatchers("/graphiql", "/graphiql/**", "/graphql", "/graphql/**", "/ws", "/ws/**", "/actuator", "/actuator/**").permitAll()
                 // تأمين طلبات المعالجة وتعديل البيانات برمز Keycloak JWT
                 .anyRequest().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder())));
 
         return http.build();
+    }
+
+    @Bean
+    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder decoder =
+            org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+                .withJwkSetUri("http://172.17.158.236:8080/realms/skystore/protocol/openid-connect/certs")
+                .build();
+        decoder.setJwtValidator(new org.springframework.security.oauth2.jwt.JwtTimestampValidator());
+        return decoder;
     }
 }

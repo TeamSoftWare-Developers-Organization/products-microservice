@@ -1,0 +1,36 @@
+enum ShipmentStatus {
+    PREPARING
+    DISPATCHED
+    IN_TRANSIT
+    DELIVERED
+    RETURNED
+}
+
+type Warehouse {
+    id: ID!
+    code: String!
+    name: String!
+    location: String!
+    active: Boolean!
+}
+
+type Shipment {
+    id: ID!
+    orderId: ID!
+    warehouse: Warehouse!
+    trackingNumber: String!
+    carrier: String!
+    status: ShipmentStatus!
+    shippingAddress: String
+    estimatedDeliveryDate: String
+    updatedAt: String
+}
+
+extend type Query {
+    trackShipment(trackingNumber: String!): Shipment
+    orderShipment(orderId: ID!): Shipment
+}
+
+extend type Mutation {
+    updateShipmentStatus(trackingNumber: String!, status: ShipmentStatus!): Shipment
+}

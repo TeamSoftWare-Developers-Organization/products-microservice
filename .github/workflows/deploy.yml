@@ -1,0 +1,86 @@
+name: SkyStore CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # المرحلة 1: الاختبارات وفحص الأكواد لجميع الخدمات
+  test-and-lint:
+    name: 🧪 Run Tests & Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # فحص واختبار Spring Boot Core
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Test Core Service
+        run: |
+          if [ -d "skystore/skystore-core" ]; then cd skystore/skystore-core; else cd skystore-core; fi
+          mvn clean test
+
+      # فحص واختبار محرك Rust
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Test Rust Media Engine
+        run: |
+          if [ -d "skystore/skystore-rust-engine" ]; then cd skystore/skystore-rust-engine; else cd skystore-rust-engine; fi
+          cargo test --verbose
+
+      # فحص واختبار Next.js عبر Bun
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build & Lint Web
+        run: |
+          if [ -d "skystore/skystore-web" ]; then cd skystore/skystore-web; else cd skystore-web; fi
+          bun install --frozen-lockfile
+          bun run lint
+          bun run build
+
+  # المرحلة 2: بناء صور الحاويات ونشرها على خادم Fedora
+  deploy-to-fedora:
+    name: 🚀 Deploy via Podman on Fedora
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Remote Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.FEDORA_SERVER_HOST }}
+          username: ${{ secrets.FEDORA_SERVER_USER }}
+          key: ${{ secrets.FEDORA_SSH_KEY }}
+          script: |
+            set -e
+            echo "📥 سحب أحدث نسخة من الكود..."
+            cd /opt/skystore
+            git pull origin main || git pull origin master
+
+            echo "📦 الانتقال إلى مسار التكوين..."
+            if [ -f "skystore/docker-compose.yml" ]; then cd skystore; fi
+
+            echo "📦 إعادة بناء الحاويات المحدثة عبر Podman..."
+            podman compose build skystore-web skystore-core rust-engine || podman-compose build skystore-web rust-engine
+
+            echo "🔄 تحديث تشغيل الحاويات تدريجياً..."
+            podman compose up -d || podman-compose up -d
+
+            echo "🧹 تنظيف الصور المؤقتة..."
+            podman image prune -f
+
+            echo "✅ اكتمل النشر بنجاح على بيئة Fedora!"

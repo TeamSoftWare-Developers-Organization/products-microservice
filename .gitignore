@@ -1,9 +1,13 @@
-﻿# Java & Maven Build Output
+# Java & Maven Build Output
 **/target/
 *.class
 **/target/*.jar
 **/target/*.war
 **/target/*.ear
+
+# Mobile & Gradle Build Output
+**/build/
+**/.gradle/
 
 # Build Tools & Binaries
 **/tools/
@@ -18,10 +22,22 @@ skystore-rust-engine-linux
 venv/
 .venv/
 
+# Node & Next.js
+**/node_modules/
+**/.next/
+**/.turbo/
+*.tsbuildinfo
+
 # Environment & Local
 .env
 .env.local
 .env.*.local
+
+# Databases & Runtime Data
+**/data/
+skystore/*.json
+skystore/*.ps1
+load-test.js
 
 # IDE & OS
 .idea/

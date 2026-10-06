@@ -27,7 +27,7 @@ spring:
 
   data:
     redis:
-      host: "::1"
+      host: ${REDIS_HOST:172.17.158.236}
       port: 6380
 
   rabbitmq:
@@ -50,7 +50,6 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/skystore
           jwk-set-uri: http://localhost:8080/realms/skystore/protocol/openid-connect/certs
 
 grpc:
@@ -64,6 +63,12 @@ app:
     exchange: orders.exchange
     queue: orders.queue
     routing-key: order.created
+  ftp:
+    host: ${FTP_HOST:localhost}
+    port: ${FTP_PORT:21}
+    username: ${FTP_USER:sky_ftp}
+    password: ${FTP_PASS:sky_ftp_secure_2026}
+    base-path: /
 
 management:
   endpoints:

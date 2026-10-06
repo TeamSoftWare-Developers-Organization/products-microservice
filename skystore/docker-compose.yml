@@ -1,20 +1,82 @@
 version: '3.8'
 
 services:
-  mariadb:
-    image: mariadb:11.4
-    container_name: skystore-mariadb
+  # ===============================================================
+  # 1. عنقود التوافرية العالية لقواعد البيانات (MariaDB Galera Cluster HA)
+  # ===============================================================
+  mariadb-galera-node1:
+    image: bitnami/mariadb-galera:11.4
+    container_name: skystore-mariadb-node1
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: skystore_db
-      MYSQL_USER: sky_user
-      MYSQL_PASSWORD: sky_secure_pass
-    ports:
-      - "3306:3306"
+      - MARIADB_GALERA_CLUSTER_BOOTSTRAP=yes
+      - MARIADB_GALERA_CLUSTER_NAME=skystore_galera_cluster
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://skystore-mariadb-node1,skystore-mariadb-node2,skystore-mariadb-node3
+      - MARIADB_GALERA_NODE_NAME=node1
+      - MARIADB_GALERA_NODE_ADDRESS=skystore-mariadb-node1
+      - MARIADB_ROOT_PASSWORD=rootpassword
+      - MARIADB_DATABASE=skystore_db
+      - MARIADB_USER=sky_user
+      - MARIADB_PASSWORD=sky_secure_pass
+      - MARIADB_GALERA_MARIABACKUP_USER=my_mariabackup
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=mariabackup_pass
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mariadb_node1_data:/bitnami/mariadb
 
+  mariadb-galera-node2:
+    image: bitnami/mariadb-galera:11.4
+    container_name: skystore-mariadb-node2
+    restart: always
+    environment:
+      - MARIADB_GALERA_CLUSTER_BOOTSTRAP=no
+      - MARIADB_GALERA_CLUSTER_NAME=skystore_galera_cluster
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://skystore-mariadb-node1,skystore-mariadb-node2,skystore-mariadb-node3
+      - MARIADB_GALERA_NODE_NAME=node2
+      - MARIADB_GALERA_NODE_ADDRESS=skystore-mariadb-node2
+      - MARIADB_ROOT_PASSWORD=rootpassword
+      - MARIADB_GALERA_MARIABACKUP_USER=my_mariabackup
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=mariabackup_pass
+    volumes:
+      - mariadb_node2_data:/bitnami/mariadb
+    depends_on:
+      - mariadb-galera-node1
+
+  mariadb-galera-node3:
+    image: bitnami/mariadb-galera:11.4
+    container_name: skystore-mariadb-node3
+    restart: always
+    environment:
+      - MARIADB_GALERA_CLUSTER_BOOTSTRAP=no
+      - MARIADB_GALERA_CLUSTER_NAME=skystore_galera_cluster
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://skystore-mariadb-node1,skystore-mariadb-node2,skystore-mariadb-node3
+      - MARIADB_GALERA_NODE_NAME=node3
+      - MARIADB_GALERA_NODE_ADDRESS=skystore-mariadb-node3
+      - MARIADB_ROOT_PASSWORD=rootpassword
+      - MARIADB_GALERA_MARIABACKUP_USER=my_mariabackup
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=mariabackup_pass
+    volumes:
+      - mariadb_node3_data:/bitnami/mariadb
+    depends_on:
+      - mariadb-galera-node1
+
+  # موازن الأحمال لعنقود Galera (HAProxy)
+  haproxy:
+    image: haproxy:2.9-alpine
+    container_name: skystore-haproxy
+    restart: always
+    ports:
+      - "3306:3306" # منفذ قواعد البيانات الموحد
+      - "8404:8404" # لوحة الإحصائيات ومقاييس Prometheus
+    volumes:
+      - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - mariadb-galera-node1
+      - mariadb-galera-node2
+      - mariadb-galera-node3
+
+  # ===============================================================
+  # 2. الهوية والمصادقة (PostgreSQL & Keycloak IAM)
+  # ===============================================================
   postgres-keycloak:
     image: postgres:16-alpine
     container_name: skystore-postgres
@@ -28,6 +90,25 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: skystore-keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://skystore-postgres:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: keycloak_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_secure_pass
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres-keycloak
+
+  # ===============================================================
+  # 3. وسيط الرسائل والذاكرة المؤقتة (RabbitMQ & Redis)
+  # ===============================================================
   redis:
     image: redis:7-alpine
     container_name: skystore-redis
@@ -46,22 +127,9 @@ services:
       RABBITMQ_DEFAULT_USER: sky_admin
       RABBITMQ_DEFAULT_PASS: sky_admin_pass
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:24.0
-    container_name: skystore-keycloak
-    command: start-dev
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://skystore-postgres:5432/keycloak_db
-      KC_DB_USERNAME: keycloak_user
-      KC_DB_PASSWORD: keycloak_password
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin_secure_pass
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres-keycloak
-
+  # ===============================================================
+  # 4. محرك معالجة الوسائط (Rust gRPC Engine)
+  # ===============================================================
   rust-engine:
     build:
       context: ./skystore-rust-engine
@@ -71,14 +139,92 @@ services:
     ports:
       - "50051:50051"
 
+  # ===============================================================
+  # 5. خادم تخزين الوسائط (FTP Storage Server)
+  # ===============================================================
+  ftp-server:
+    image: fauria/vsftpd:latest
+    container_name: skystore-ftp
+    restart: always
+    environment:
+      FTP_USER: sky_ftp
+      FTP_PASS: sky_ftp_secure_2026
+      PASV_MIN_PORT: 21100
+      PASV_MAX_PORT: 21110
+      PASV_ADDRESS: 127.0.0.1
+    ports:
+      - "21:21"
+      - "20:20"
+      - "21100-21110:21100-21110"
+    volumes:
+      - ftp_data:/home/vsftpd/sky_ftp
+
+  # ===============================================================
+  # 6. منصة أوركسترا تدفقات البيانات (Spring Cloud Data Flow & Skipper)
+  # ===============================================================
+  skipper:
+    image: springcloud/spring-cloud-skipper-server:2.11.4
+    container_name: skystore-skipper
+    restart: always
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://skystore-haproxy:3306/skystore_db?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8
+      - SPRING_DATASOURCE_USERNAME=sky_user
+      - SPRING_DATASOURCE_PASSWORD=sky_secure_pass
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.mariadb.jdbc.Driver
+    ports:
+      - "7577:7577"
+    depends_on:
+      - haproxy
+
+  dataflow:
+    image: springcloud/spring-cloud-dataflow-server:2.11.4
+    container_name: skystore-dataflow
+    restart: always
+    environment:
+      - SPRING_CLOUD_SKIPPER_CLIENT_SERVER_URI=http://skystore-skipper:7577/api
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://skystore-haproxy:3306/skystore_db?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8
+      - SPRING_DATASOURCE_USERNAME=sky_user
+      - SPRING_DATASOURCE_PASSWORD=sky_secure_pass
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.mariadb.jdbc.Driver
+      - SPRING_RABBITMQ_HOST=skystore-rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=sky_admin
+      - SPRING_RABBITMQ_PASSWORD=sky_admin_pass
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus,metrics
+      - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
+    ports:
+      - "9393:9393"
+    depends_on:
+      - skipper
+      - rabbitmq
+      - haproxy
+
+  # ===============================================================
+  # 7. المراقبة والتحذيرات اللحظية (Monitoring & Alerting)
+  # ===============================================================
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: skystore-alertmanager
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infra/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
   prometheus:
     image: prom/prometheus:v2.52.0
     container_name: skystore-prometheus
     restart: always
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infra/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
     ports:
       - "9090:9090"
+    depends_on:
+      - alertmanager
 
   loki:
     image: grafana/loki:3.0.0
@@ -94,12 +240,43 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin_monitor_pass
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
     ports:
       - "3001:3000"
     depends_on:
       - prometheus
       - loki
 
+  skystore-web:
+    build:
+      context: ./skystore-web
+      dockerfile: Dockerfile
+    container_name: skystore-web
+    restart: always
+    tty: true
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NEXTAUTH_URL=https://app.skystore.local
+      - NEXTAUTH_SECRET=skystore_super_secret_session_key_2026
+      - KEYCLOAK_CLIENT_ID=skystore-web-client
+      - KEYCLOAK_CLIENT_SECRET=skystore-web-secret-2026
+      - KEYCLOAK_ISSUER=https://auth.skystore.local/realms/skystore
+      - NEXT_PUBLIC_GRAPHQL_ENDPOINT=https://api.skystore.local/graphql
+      - NEXT_PUBLIC_WS_ENDPOINT=https://api.skystore.local/ws
+      - NEXT_PUBLIC_MEDIA_URL=https://api.skystore.local/media/products
+
 volumes:
-  mariadb_data:
+  mariadb_node1_data:
+  mariadb_node2_data:
+  mariadb_node3_data:
   postgres_data:
+  ftp_data:
+
+networks:
+  default:
+    name: skystore-net
+    external: true

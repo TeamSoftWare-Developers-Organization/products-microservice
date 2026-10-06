@@ -1,0 +1,47 @@
+groups:
+  - name: skystore_system_alerts
+    rules:
+      - alert: ServiceInstanceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service [{{ $labels.job }}] is DOWN"
+          description: "Instance {{ $labels.instance }} of job {{ $labels.job }} has been unavailable for more than 30 seconds."
+
+      - alert: HighJvmHeapMemoryUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 85
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM Heap Memory on {{ $labels.instance }}"
+          description: "JVM Heap Memory consumption is at {{ $value | printf \"%.2f\" }}% (> 85%) on {{ $labels.instance }}."
+
+      - alert: HighCpuUsage
+        expr: system_cpu_usage * 100 > 80
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High System CPU Usage on {{ $labels.instance }}"
+          description: "Host CPU usage is at {{ $value | printf \"%.2f\" }}% (> 80%) for over 1 minute."
+
+      - alert: HighHttpRequestLatency
+        expr: http_server_requests_seconds_max > 2.0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP Response Latency on {{ $labels.instance }}"
+          description: "HTTP request latency exceeded 2 seconds on uri {{ $labels.uri }}."
+
+      - alert: SpringBootErrorsDetected
+        expr: rate(logback_events_total{level="error"}[2m]) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated Error Log Rate in Spring Boot Core"
+          description: "Error log rate is {{ $value }} errors/sec over the last 2 minutes."

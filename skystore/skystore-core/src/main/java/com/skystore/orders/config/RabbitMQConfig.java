@@ -78,6 +78,16 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue shippingQueue() {
+        return QueueBuilder.durable("shipping.queue").build();
+    }
+
+    @Bean
+    public Binding shippingBinding(Queue shippingQueue, TopicExchange orderExchange) {
+        return BindingBuilder.bind(shippingQueue).to(orderExchange).with(routingKey);
+    }
+
+    @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }
